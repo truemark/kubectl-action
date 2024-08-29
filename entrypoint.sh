@@ -16,6 +16,10 @@ if [ -z "$KUBECONFIG" ]; then
   exit 1
 fi
 
+echo "${KUBECONFIG}" | base64 -d > kubeconfig
+export KUBECONFIG="${PWD}/kubeconfig"
+chmod 600 "${PWD}/kubeconfig"
+
 # If no arguments are provided, print the help and exit
 if [ $# -eq 0 ]; then
   echo "No command provided. Usage: entrypoint.sh <kubectl-command>"
