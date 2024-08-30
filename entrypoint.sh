@@ -25,7 +25,7 @@ if [ $# -eq 0 ]; then
 fi
 
 echo "Running kubectl command: kubectl $*"
-kubectl_output=$(kubectl $@)
+kubectl_output=$(kubectl '$@')
 
 if [ -f output.txt ]; then
   rm -f output.txt
