@@ -31,7 +31,7 @@ if [ -f output.txt ]; then
   rm -f output.txt
 fi
 
-echo "Command output stored in kubectl_output.txt"
+echo "Command output stored in output.txt"
 echo "$kubectl_output"
 echo "$kubectl_output" > output.txt
 
