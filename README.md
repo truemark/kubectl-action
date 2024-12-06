@@ -1,6 +1,12 @@
-## github-kubectl
+# Kubernetes Tools Action
+This action uses typescript to install the tools needed to manage applications in a Kubernetes cluster. Here are the tools that will be installed:
+- Helm
+- Kubectl
+- YQ
 
-# Examples
+You can set the versions for each of the tools, or the action will just install the stable versions of the tools.
+
+## Examples
 
 ```yaml
 jobs:
@@ -8,27 +14,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Helm Command
-        uses: your-repo/your-action@main
+        uses: truemark/github-kubectl@main
         with:
           helm-enabled: 'true'
           helm-version: '3.9.0'
           command: 'helm version'
 
       - name: Run Kubectl Command
-        uses: your-repo/your-action@main
+        uses: truemark/github-kubectl@main
         with:
           kubectl-enabled: 'true'
           kubectl-version: 'stable'
           command: 'kubectl get pods'
 
       - name: Run YQ Command
-        uses: your-repo/your-action@main
+        uses: truemark/github-kubectl@main
         with:
           yq-enabled: 'true'
           yq-version: '4.30.5'
-          command: 'yq eval .some.property file.yaml'
+          command: 'yq eval .image.tag values.yaml'
 
 ```
