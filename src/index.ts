@@ -41,48 +41,54 @@ async function installYQ(version: string): Promise<void> {
 }
 
 async function run(): Promise<void> {
-    try {
-        // Read inputs
-        const helmEnabled = core.getInput('helm-enabled') === 'true';
-        const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
-        const yqEnabled = core.getInput('yq-enabled') === 'true';
-        const helmVersion = core.getInput('helm-version');
-        const kubectlVersion = core.getInput('kubectl-version');
-        const yqVersion = core.getInput('yq-version');
-        const command = core.getInput('command');
+  try {
+    // Read inputs
+    const helmEnabled = core.getInput('helm-enabled') === 'true';
+    const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
+    const yqEnabled = core.getInput('yq-enabled') === 'true';
+    const helmVersion = core.getInput('helm-version');
+    const kubectlVersion = core.getInput('kubectl-version');
+    const yqVersion = core.getInput('yq-version');
+    const command = core.getInput('command');
 
-        // Install tools based on inputs
-        if (helmEnabled) {
-            await installHelm(helmVersion);
-        }
-
-        if (kubectlEnabled) {
-            await installKubectl(kubectlVersion);
-        }
-
-        if (yqEnabled) {
-            await installYQ(yqVersion);
-        }
-
-        // Execute the specified command
-        core.info(`Executing command: ${command}`);
-        let output = '';
-        const options: exec.ExecOptions = {
-            listeners: {
-                stdout: (data: Buffer) => {
-                    process.stdout.write(data.toString());
-                    output += data.toString();
-                },
-            },
-        };
-
-        await exec.exec(command, [], options);
-
-        // Set output for the workflow
-        core.setOutput('output', output);
-    } catch (error) {
-        core.setFailed((error as Error).message);
+    // Install tools based on inputs
+    if (helmEnabled) {
+      await installHelm(helmVersion);
     }
+
+    if (kubectlEnabled) {
+      await installKubectl(kubectlVersion);
+    }
+
+    if (yqEnabled) {
+      await installYQ(yqVersion);
+    }
+
+    // Check if a command is supplied
+    if (command) {
+      core.info(`Executing command: ${command}`);
+      let output = '';
+      const options: exec.ExecOptions = {
+        listeners: {
+          stdout: (data: Buffer) => {
+            process.stdout.write(data.toString());
+            output += data.toString();
+          },
+        },
+      };
+
+      await exec.exec(command, [], options);
+
+      // Set output for the workflow
+      core.setOutput('output', output);
+    } else {
+      core.info('No command supplied. Skipping command execution.');
+      core.setOutput('output', 'No command executed.');
+    }
+  } catch (error) {
+    core.setFailed((error as Error).message);
+  }
 }
+
 
 run();
