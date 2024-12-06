@@ -27,7 +27,7 @@ inputs:
     default: 'latest'
   command:
     description: "Command to execute after installing tools"
-    required: true
+    required: false
 outputs:
   output:
     description: 'Output of the kubectl command'
