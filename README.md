@@ -17,21 +17,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Helm Command
-        uses: truemark/github-kubectl@main
+        uses: truemark/kubectl-action@main
         with:
           helm-enabled: 'true'
           helm-version: '3.9.0'
           command: 'helm version'
 
       - name: Run Kubectl Command
-        uses: truemark/github-kubectl@main
+        uses: truemark/kubectl-action@main
         with:
           kubectl-enabled: 'true'
           kubectl-version: 'stable'
           command: 'kubectl get pods'
 
       - name: Run YQ Command
-        uses: truemark/github-kubectl@main
+        uses: truemark/kubectl-action@main
         with:
           yq-enabled: 'true'
           yq-version: '4.30.5'
