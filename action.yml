@@ -1,12 +1,18 @@
 name: 'Install Kubernetes Tools'
 description: 'A GitHub Action to install Helm, Kubectl and YQ.'
 inputs:
-  kubectl-command:
-    description: 'The kubectl command to run'
-    required: true
-  kubeconfig:
-    description: 'Base64-encoded KUBECONFIG file'
-    required: true
+  helm-enabled:
+    description: 'Enable installation of Helm'
+    required: false
+    default: 'false'
+  kubectl-enabled:
+    description: 'Enable installation of Kubectl'
+    required: false
+    default: 'false'
+  yq-enabled:
+    description: 'Enable installation of YQ'
+    required: false
+    default: 'false'
   helm-version:
     description: 'The version of Helm to install'
     required: false

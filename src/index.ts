@@ -1,7 +1,5 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
-import * as fs from 'fs';
-import * as path from 'path';
 import axios from 'axios';
 
 async function installHelm(version: string): Promise<void> {
@@ -16,11 +14,10 @@ async function installHelm(version: string): Promise<void> {
 }
 
 async function installKubectl(version: string): Promise<void> {
-    core.info(`Installing Kubectl version: ${version}...`);
+    core.info(`Installing Kubectl version ${version}...`);
     let kubectlUrl = '';
 
     if (version === 'stable') {
-        // Fetch the latest stable version dynamically
         const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
         const response = await axios.get(stableVersionUrl);
         const stableVersion = response.data.trim();
@@ -45,41 +42,44 @@ async function installYQ(version: string): Promise<void> {
 
 async function run(): Promise<void> {
     try {
-        // Read inputs and use defaults if inputs are missing
-        const kubectlCommand = core.getInput('kubectl-command', { required: true });
-        const kubeconfigEncoded = core.getInput('kubeconfig', { required: true });
+        // Read inputs
+        const helmEnabled = core.getInput('helm-enabled') === 'true';
+        const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
+        const yqEnabled = core.getInput('yq-enabled') === 'true';
+        const helmVersion = core.getInput('helm-version');
+        const kubectlVersion = core.getInput('kubectl-version');
+        const yqVersion = core.getInput('yq-version');
+        const command = core.getInput('command');
 
-        const helmVersion = core.getInput('helm-version') || '3.9.0';
-        const kubectlVersion = core.getInput('kubectl-version') || 'stable';
-        const yqVersion = core.getInput('yq-version') || '4.30.5';
+        // Install tools based on inputs
+        if (helmEnabled) {
+            await installHelm(helmVersion);
+        }
 
-        core.info(`Using Helm version: ${helmVersion}`);
-        core.info(`Using Kubectl version: ${kubectlVersion}`);
-        core.info(`Using YQ version: ${yqVersion}`);
+        if (kubectlEnabled) {
+            await installKubectl(kubectlVersion);
+        }
 
-        // Install tools
-        await installHelm(helmVersion);
-        await installKubectl(kubectlVersion);
-        await installYQ(yqVersion);
+        if (yqEnabled) {
+            await installYQ(yqVersion);
+        }
 
-        // Set up KUBECONFIG
-        const kubeconfigPath = path.join(process.cwd(), 'kubeconfig');
-        const kubeconfig = Buffer.from(kubeconfigEncoded, 'base64').toString('utf8');
-        fs.writeFileSync(kubeconfigPath, kubeconfig, { mode: 0o600 });
-        core.exportVariable('KUBECONFIG', kubeconfigPath);
-
-        // Execute kubectl command
+        // Execute the specified command
+        core.info(`Executing command: ${command}`);
+        let output = '';
         const options: exec.ExecOptions = {
             listeners: {
                 stdout: (data: Buffer) => {
                     process.stdout.write(data.toString());
+                    output += data.toString();
                 },
             },
         };
 
-        await exec.exec(`kubectl ${kubectlCommand}`, [], options);
+        await exec.exec(command, [], options);
 
-        core.setOutput('output', `kubectl ${kubectlCommand} executed successfully`);
+        // Set output for the workflow
+        core.setOutput('output', output);
     } catch (error) {
         core.setFailed((error as Error).message);
     }
