@@ -25,6 +25,9 @@ inputs:
     description: 'The version of YQ to install'
     required: false
     default: 'latest'
+  command:
+    description: "Command to execute after installing tools"
+    required: true
 outputs:
   output:
     description: 'Output of the kubectl command'
