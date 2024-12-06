@@ -16,6 +16,18 @@ inputs:
   kubeconfig:
     description: 'Base64-encoded KUBECONFIG file'
     required: true
+  helm-version:
+    description: 'The version of Helm to install'
+    required: false
+    default: 'stable'
+  kubectl-version:
+    description: 'The version of Kubectl to install'
+    required: false
+    default: 'stable'
+  yq-version:
+    description: 'The version of YQ to install'
+    required: false
+    default: 'latest'
 outputs:
   output:
     description: 'Output of the kubectl command'
