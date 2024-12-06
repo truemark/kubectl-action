@@ -49,7 +49,7 @@ async function run(): Promise<void> {
     const helmVersion = core.getInput('helm-version');
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
-    const command = core.getInput('command');
+    const command = core.getInput('command'); // This is optional
 
     // Install tools based on inputs
     if (helmEnabled) {
@@ -65,7 +65,7 @@ async function run(): Promise<void> {
     }
 
     // Check if a command is supplied
-    if (command) {
+    if (command && command.trim()) {
       core.info(`Executing command: ${command}`);
       let output = '';
       const options: exec.ExecOptions = {
@@ -89,6 +89,5 @@ async function run(): Promise<void> {
     core.setFailed((error as Error).message);
   }
 }
-
 
 run();
