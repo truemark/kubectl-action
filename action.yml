@@ -1,12 +1,3 @@
-#name: 'github-kubectl'
-#description: 'Allows GitHub Actions to run kubectl commands.'
-#outputs:
-#  result:
-#    description: "Output returned by your Helm or kubectl command"
-#runs:
-#  using: 'docker'
-#  image: 'Dockerfile'
-
 name: 'Install Kubernetes Tools'
 description: 'A GitHub Action to install Helm, Kubectl and YQ.'
 inputs:
