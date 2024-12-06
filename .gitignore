@@ -1,3 +1,6 @@
 .idea
 kubeconfig
 test.sh
+dist/index.js
+action.yml
+node_modules/

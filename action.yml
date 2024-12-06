@@ -1,9 +1,24 @@
-name: 'github-kubectl'
-description: 'Allows GitHub Actions to run kubectl commands.'
-outputs:
-  result:
-    description: "Output returned by your Helm or kubectl command"
-runs:
-  using: 'docker'
-  image: 'Dockerfile'
+#name: 'github-kubectl'
+#description: 'Allows GitHub Actions to run kubectl commands.'
+#outputs:
+#  result:
+#    description: "Output returned by your Helm or kubectl command"
+#runs:
+#  using: 'docker'
+#  image: 'Dockerfile'
 
+name: 'Install Kubernetes Tools'
+description: 'A GitHub Action to install Helm, Kubectl and YQ.'
+inputs:
+  kubectl-command:
+    description: 'The kubectl command to run'
+    required: true
+  kubeconfig:
+    description: 'Base64-encoded KUBECONFIG file'
+    required: true
+outputs:
+  output:
+    description: 'Output of the kubectl command'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
