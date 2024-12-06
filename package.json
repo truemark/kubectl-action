@@ -12,9 +12,12 @@
   "license": "ISC",
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/exec": "^1.1.1"
+    "@actions/exec": "^1.1.1",
+    "axios": "^1.7.9"
   },
   "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/node": "^22.10.1",
     "@vercel/ncc": "^0.38.3",
     "typescript": "^5.7.2"
   }
