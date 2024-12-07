@@ -25,6 +25,8 @@ inputs:
     description: 'The version of YQ to install'
     required: false
     default: 'latest'
+  kubeconfig:
+    description: 'Path to the KUBECONFIG file'
   command:
     description: "Command to execute after installing tools"
     required: false

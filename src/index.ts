@@ -61,7 +61,16 @@ async function run(): Promise<void> {
     const helmVersion = core.getInput('helm-version');
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
+    const kubeconfig = core.getInput('kubeconfig');
     const command = core.getInput('command'); // This is optional
+
+    // Set KUBECONFIG environment variable if provided
+    if (kubeconfig && kubeconfig.trim()) {
+      core.info('Setting KUBECONFIG environment variable.');
+      process.env.KUBECONFIG = kubeconfig.trim();
+    } else {
+      core.info('KUBECONFIG is not provided. Using default configuration.');
+    }
 
     // Install tools based on inputs
     if (helmEnabled) {
