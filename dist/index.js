@@ -70,8 +70,22 @@ function installHelm(version) {
         core.info(`Downloading Helm from ${helmUrl}...`);
         yield exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
         yield exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
-        yield exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
-        yield exec.exec(`chmod +x /usr/local/bin/helm`);
+        // Move the Helm binary to a directory in PATH
+        const helmBinaryPath = '/tmp/linux-amd64/helm';
+        const destinationPath = '/usr/local/bin/helm';
+        core.info(`Moving Helm binary to ${destinationPath}...`);
+        try {
+            yield exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+        }
+        catch (error) {
+            // If /usr/local/bin is not writable, fall back to $HOME/bin
+            const fallbackPath = `${process.env.HOME}/bin`;
+            core.info(`/usr/local/bin is not writable. Falling back to ${fallbackPath}...`);
+            yield exec.exec(`mkdir -p ${fallbackPath}`);
+            yield exec.exec(`mv ${helmBinaryPath} ${fallbackPath}/helm`);
+            core.addPath(fallbackPath); // Add fallbackPath to PATH
+        }
+        yield exec.exec(`chmod +x ${destinationPath}`);
         core.info(`Helm ${version} installed successfully.`);
     });
 }
