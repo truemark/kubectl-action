@@ -69,6 +69,8 @@ function handleKubeconfig(kubeconfigBase64) {
             // Write the decoded kubeconfig to a temporary file
             const kubeconfigPath = path.join('/tmp', 'kubeconfig.yaml');
             fs.writeFileSync(kubeconfigPath, kubeconfig, { encoding: 'utf-8' });
+            // Restrict file permissions (read/write for the owner only)
+            fs.chmodSync(kubeconfigPath, 0o600);
             // Set the KUBECONFIG environment variable
             process.env.KUBECONFIG = kubeconfigPath;
             core.info(`KUBECONFIG is set to ${kubeconfigPath}`);
