@@ -1,6 +1,30 @@
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
+
+async function handleKubeconfig(kubeconfigBase64: string): Promise<void> {
+  if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
+    core.info('No Base64-encoded KUBECONFIG provided. Skipping configuration.');
+    return;
+  }
+
+  try {
+    core.info('Decoding Base64-encoded KUBECONFIG...');
+    const kubeconfig = Buffer.from(kubeconfigBase64, 'base64').toString('utf-8');
+
+    // Write the decoded kubeconfig to a temporary file
+    const kubeconfigPath = path.join('/tmp', 'kubeconfig.yaml');
+    fs.writeFileSync(kubeconfigPath, kubeconfig, { encoding: 'utf-8' });
+
+    // Set the KUBECONFIG environment variable
+    process.env.KUBECONFIG = kubeconfigPath;
+    core.info(`KUBECONFIG is set to ${kubeconfigPath}`);
+  } catch (error) {
+    core.setFailed(`Failed to decode and set KUBECONFIG: ${(error as Error).message}`);
+  }
+}
 
 async function installHelm(version: string): Promise<void> {
   core.info(`Installing Helm version ${version}...`);
@@ -78,15 +102,14 @@ async function run(): Promise<void> {
     const helmVersion = core.getInput('helm-version');
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
-    const kubeconfig = core.getInput('kubeconfig');
+    const kubeconfigBase64 = core.getInput('kubeconfig');
     const command = core.getInput('command'); // This is optional
 
-    // Set KUBECONFIG environment variable if provided
-    if (kubeconfig && kubeconfig.trim()) {
-      core.info('Setting KUBECONFIG environment variable.');
-      process.env.KUBECONFIG = kubeconfig.trim();
+    // Handle Base64-encoded KUBECONFIG
+    if (kubeconfigBase64 && kubeconfigBase64.trim()) {
+      await handleKubeconfig(kubeconfigBase64);
     } else {
-      core.info('KUBECONFIG is not provided. Using default configuration.');
+      core.info('No KUBECONFIG provided. Using default configuration.');
     }
 
     // Install tools based on inputs

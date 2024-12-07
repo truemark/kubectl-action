@@ -26,7 +26,7 @@ inputs:
     required: false
     default: 'latest'
   kubeconfig:
-    description: 'Path to the KUBECONFIG file'
+    description: 'Base64-encoded KUBECONFIG content'
   command:
     description: "Command to execute after installing tools"
     required: false

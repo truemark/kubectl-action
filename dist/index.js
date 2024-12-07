@@ -55,6 +55,29 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+function handleKubeconfig(kubeconfigBase64) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
+            core.info('No Base64-encoded KUBECONFIG provided. Skipping configuration.');
+            return;
+        }
+        try {
+            core.info('Decoding Base64-encoded KUBECONFIG...');
+            const kubeconfig = Buffer.from(kubeconfigBase64, 'base64').toString('utf-8');
+            // Write the decoded kubeconfig to a temporary file
+            const kubeconfigPath = path.join('/tmp', 'kubeconfig.yaml');
+            fs.writeFileSync(kubeconfigPath, kubeconfig, { encoding: 'utf-8' });
+            // Set the KUBECONFIG environment variable
+            process.env.KUBECONFIG = kubeconfigPath;
+            core.info(`KUBECONFIG is set to ${kubeconfigPath}`);
+        }
+        catch (error) {
+            core.setFailed(`Failed to decode and set KUBECONFIG: ${error.message}`);
+        }
+    });
+}
 function installHelm(version) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`Installing Helm version ${version}...`);
@@ -126,15 +149,14 @@ function run() {
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
-            const kubeconfig = core.getInput('kubeconfig');
+            const kubeconfigBase64 = core.getInput('kubeconfig');
             const command = core.getInput('command'); // This is optional
-            // Set KUBECONFIG environment variable if provided
-            if (kubeconfig && kubeconfig.trim()) {
-                core.info('Setting KUBECONFIG environment variable.');
-                process.env.KUBECONFIG = kubeconfig.trim();
+            // Handle Base64-encoded KUBECONFIG
+            if (kubeconfigBase64 && kubeconfigBase64.trim()) {
+                yield handleKubeconfig(kubeconfigBase64);
             }
             else {
-                core.info('KUBECONFIG is not provided. Using default configuration.');
+                core.info('No KUBECONFIG provided. Using default configuration.');
             }
             // Install tools based on inputs
             if (helmEnabled) {
