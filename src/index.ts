@@ -20,8 +20,24 @@ async function installHelm(version: string): Promise<void> {
   core.info(`Downloading Helm from ${helmUrl}...`);
   await exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
   await exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
-  await exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
-  await exec.exec(`chmod +x /usr/local/bin/helm`);
+
+  // Move the Helm binary to a directory in PATH
+  const helmBinaryPath = '/tmp/linux-amd64/helm';
+  const destinationPath = '/usr/local/bin/helm';
+
+  core.info(`Moving Helm binary to ${destinationPath}...`);
+  try {
+    await exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+  } catch (error) {
+    // If /usr/local/bin is not writable, fall back to $HOME/bin
+    const fallbackPath = `${process.env.HOME}/bin`;
+    core.info(`/usr/local/bin is not writable. Falling back to ${fallbackPath}...`);
+    await exec.exec(`mkdir -p ${fallbackPath}`);
+    await exec.exec(`mv ${helmBinaryPath} ${fallbackPath}/helm`);
+    core.addPath(fallbackPath); // Add fallbackPath to PATH
+  }
+
+  await exec.exec(`chmod +x ${destinationPath}`);
 
   core.info(`Helm ${version} installed successfully.`);
 }
