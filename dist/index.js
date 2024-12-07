@@ -67,7 +67,7 @@ function handleKubeconfig(kubeconfigBase64) {
             core.info('Decoding Base64-encoded KUBECONFIG...');
             const kubeconfig = Buffer.from(kubeconfigBase64, 'base64').toString('utf-8');
             // Write the decoded kubeconfig to a temporary file
-            const kubeconfigPath = path.join('/tmp', 'kubeconfig.yaml');
+            const kubeconfigPath = path.join('/tmp', 'kubeconfig');
             fs.writeFileSync(kubeconfigPath, kubeconfig, { encoding: 'utf-8' });
             // Restrict file permissions (read/write for the owner only)
             fs.chmodSync(kubeconfigPath, 0o600);
