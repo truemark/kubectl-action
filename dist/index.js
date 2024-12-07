@@ -58,12 +58,21 @@ const axios_1 = __importDefault(__nccwpck_require__(4584));
 function installHelm(version) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`Installing Helm version ${version}...`);
-        const helmUrl = version === 'latest'
-            ? 'https://get.helm.sh/helm-latest-linux-amd64.tar.gz'
-            : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
-        yield exec.exec(`curl -sSL ${helmUrl} | tar -xz -C /tmp`);
+        let helmUrl;
+        // Map 'stable' to the latest known stable version
+        if (version === 'stable') {
+            version = '3.13.0'; // Replace with the desired stable version
+        }
+        helmUrl =
+            version === 'latest'
+                ? 'https://get.helm.sh/helm-latest-linux-amd64.tar.gz'
+                : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
+        core.info(`Downloading Helm from ${helmUrl}...`);
+        yield exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
+        yield exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
         yield exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
         yield exec.exec(`chmod +x /usr/local/bin/helm`);
+        core.info(`Helm ${version} installed successfully.`);
     });
 }
 function installKubectl(version) {
@@ -103,7 +112,16 @@ function run() {
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
+            const kubeconfig = core.getInput('kubeconfig');
             const command = core.getInput('command'); // This is optional
+            // Set KUBECONFIG environment variable if provided
+            if (kubeconfig && kubeconfig.trim()) {
+                core.info('Setting KUBECONFIG environment variable.');
+                process.env.KUBECONFIG = kubeconfig.trim();
+            }
+            else {
+                core.info('KUBECONFIG is not provided. Using default configuration.');
+            }
             // Install tools based on inputs
             if (helmEnabled) {
                 yield installHelm(helmVersion);

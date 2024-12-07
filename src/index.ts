@@ -18,7 +18,8 @@ async function installHelm(version: string): Promise<void> {
       : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
 
   core.info(`Downloading Helm from ${helmUrl}...`);
-  await exec.exec(`curl -sSL ${helmUrl} | tar -xz -C /tmp`);
+  await exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
+  await exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
   await exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
   await exec.exec(`chmod +x /usr/local/bin/helm`);
 
