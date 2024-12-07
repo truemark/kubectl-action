@@ -3,14 +3,26 @@ import * as exec from '@actions/exec';
 import axios from 'axios';
 
 async function installHelm(version: string): Promise<void> {
-    core.info(`Installing Helm version ${version}...`);
-    const helmUrl =
-        version === 'latest'
-            ? 'https://get.helm.sh/helm-latest-linux-amd64.tar.gz'
-            : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
-    await exec.exec(`curl -sSL ${helmUrl} | tar -xz -C /tmp`);
-    await exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
-    await exec.exec(`chmod +x /usr/local/bin/helm`);
+  core.info(`Installing Helm version ${version}...`);
+
+  let helmUrl: string;
+
+  // Map 'stable' to the latest known stable version
+  if (version === 'stable') {
+    version = '3.13.0'; // Replace with the desired stable version
+  }
+
+  helmUrl =
+    version === 'latest'
+      ? 'https://get.helm.sh/helm-latest-linux-amd64.tar.gz'
+      : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
+
+  core.info(`Downloading Helm from ${helmUrl}...`);
+  await exec.exec(`curl -sSL ${helmUrl} | tar -xz -C /tmp`);
+  await exec.exec(`sudo mv /tmp/linux-amd64/helm /usr/local/bin/helm`);
+  await exec.exec(`chmod +x /usr/local/bin/helm`);
+
+  core.info(`Helm ${version} installed successfully.`);
 }
 
 async function installKubectl(version: string): Promise<void> {
