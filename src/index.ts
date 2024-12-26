@@ -110,13 +110,35 @@ async function installKubectl(version: string): Promise<void> {
 }
 
 async function installYQ(version: string): Promise<void> {
-    core.info(`Installing YQ version ${version}...`);
-    const yqUrl =
-        version === 'latest'
-            ? 'https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64'
-            : `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
-    await exec.exec(`curl -sSL -o /usr/local/bin/yq ${yqUrl}`);
-    await exec.exec(`chmod +x /usr/local/bin/yq`);
+  core.info(`Installing YQ version ${version}...`);
+  const yqUrl =
+    version === 'latest'
+      ? 'https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64'
+      : `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
+
+  const yqBinaryPath = '/tmp/yq';
+  let destinationPath = '/usr/local/bin/yq';
+
+  try {
+    core.info(`Downloading YQ from ${yqUrl}...`);
+    await exec.exec(`curl -sSL -o ${yqBinaryPath} ${yqUrl}`);
+
+    core.info(`Attempting to move YQ binary to ${destinationPath}...`);
+    await exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+  } catch (error) {
+    // Fallback logic for non-writable /usr/local/bin
+    const fallbackPath = `${process.env.HOME}/bin`;
+    destinationPath = `${fallbackPath}/yq`;
+
+    core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+    await exec.exec(`mkdir -p ${fallbackPath}`);
+    await exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+    core.addPath(fallbackPath); // Add fallbackPath to PATH
+  }
+
+  core.info(`YQ ${version} installed successfully at ${destinationPath}.`);
 }
 
 async function run(): Promise<void> {
