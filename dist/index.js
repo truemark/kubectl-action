@@ -129,8 +129,26 @@ function installKubectl(version) {
         else {
             kubectlUrl = `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
         }
-        yield exec.exec(`curl -sSL -o /usr/local/bin/kubectl ${kubectlUrl}`);
-        yield exec.exec(`chmod +x /usr/local/bin/kubectl`);
+        const kubectlBinaryPath = '/tmp/kubectl';
+        let destinationPath = '/usr/local/bin/kubectl';
+        try {
+            core.info(`Downloading Kubectl from ${kubectlUrl}...`);
+            yield exec.exec(`curl -sSL -o ${kubectlBinaryPath} ${kubectlUrl}`);
+            core.info(`Attempting to move Kubectl binary to ${destinationPath}...`);
+            yield exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+        }
+        catch (error) {
+            // Fallback logic for non-writable /usr/local/bin
+            const fallbackPath = `${process.env.HOME}/bin`;
+            destinationPath = `${fallbackPath}/kubectl`;
+            core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+            yield exec.exec(`mkdir -p ${fallbackPath}`);
+            yield exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+            core.addPath(fallbackPath); // Add fallbackPath to PATH
+        }
+        core.info(`Kubectl ${version} installed successfully at ${destinationPath}.`);
     });
 }
 function installYQ(version) {

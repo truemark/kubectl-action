@@ -72,20 +72,41 @@ async function installHelm(version: string): Promise<void> {
 }
 
 async function installKubectl(version: string): Promise<void> {
-    core.info(`Installing Kubectl version ${version}...`);
-    let kubectlUrl = '';
+  core.info(`Installing Kubectl version ${version}...`);
+  let kubectlUrl = '';
 
-    if (version === 'stable') {
-        const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
-        const response = await axios.get(stableVersionUrl);
-        const stableVersion = response.data.trim();
-        kubectlUrl = `https://dl.k8s.io/release/${stableVersion}/bin/linux/amd64/kubectl`;
-    } else {
-        kubectlUrl = `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
-    }
+  if (version === 'stable') {
+    const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
+    const response = await axios.get(stableVersionUrl);
+    const stableVersion = response.data.trim();
+    kubectlUrl = `https://dl.k8s.io/release/${stableVersion}/bin/linux/amd64/kubectl`;
+  } else {
+    kubectlUrl = `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
+  }
 
-    await exec.exec(`curl -sSL -o /usr/local/bin/kubectl ${kubectlUrl}`);
-    await exec.exec(`chmod +x /usr/local/bin/kubectl`);
+  const kubectlBinaryPath = '/tmp/kubectl';
+  let destinationPath = '/usr/local/bin/kubectl';
+
+  try {
+    core.info(`Downloading Kubectl from ${kubectlUrl}...`);
+    await exec.exec(`curl -sSL -o ${kubectlBinaryPath} ${kubectlUrl}`);
+
+    core.info(`Attempting to move Kubectl binary to ${destinationPath}...`);
+    await exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+  } catch (error) {
+    // Fallback logic for non-writable /usr/local/bin
+    const fallbackPath = `${process.env.HOME}/bin`;
+    destinationPath = `${fallbackPath}/kubectl`;
+
+    core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+    await exec.exec(`mkdir -p ${fallbackPath}`);
+    await exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+    core.addPath(fallbackPath); // Add fallbackPath to PATH
+  }
+
+  core.info(`Kubectl ${version} installed successfully at ${destinationPath}.`);
 }
 
 async function installYQ(version: string): Promise<void> {
