@@ -50,23 +50,25 @@ async function installHelm(version: string): Promise<void> {
 
   // Move the Helm binary to a directory in PATH
   const helmBinaryPath = '/tmp/linux-amd64/helm';
-  const destinationPath = '/usr/local/bin/helm';
+  let destinationPath = '/usr/local/bin/helm';
 
-  core.info(`Moving Helm binary to ${destinationPath}...`);
+  core.info(`Attempting to move Helm binary to ${destinationPath}...`);
   try {
     await exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
   } catch (error) {
     // If /usr/local/bin is not writable, fall back to $HOME/bin
     const fallbackPath = `${process.env.HOME}/bin`;
-    core.info(`/usr/local/bin is not writable. Falling back to ${fallbackPath}...`);
+    destinationPath = `${fallbackPath}/helm`;
+
+    core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
     await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${helmBinaryPath} ${fallbackPath}/helm`);
+    await exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await exec.exec(`chmod +x ${destinationPath}`);
-
-  core.info(`Helm ${version} installed successfully.`);
+  core.info(`Helm ${version} installed successfully at ${destinationPath}.`);
 }
 
 async function installKubectl(version: string): Promise<void> {
