@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "pnpm tsc",
-    "bundle": "pnpm ncc build dist/index.js -o dist"
+    "package": "pnpm ncc build dist/index.js -o dist"
   },
   "keywords": [],
   "author": "",

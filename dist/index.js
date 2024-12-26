@@ -97,21 +97,23 @@ function installHelm(version) {
         yield exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
         // Move the Helm binary to a directory in PATH
         const helmBinaryPath = '/tmp/linux-amd64/helm';
-        const destinationPath = '/usr/local/bin/helm';
-        core.info(`Moving Helm binary to ${destinationPath}...`);
+        let destinationPath = '/usr/local/bin/helm';
+        core.info(`Attempting to move Helm binary to ${destinationPath}...`);
         try {
             yield exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
         }
         catch (error) {
             // If /usr/local/bin is not writable, fall back to $HOME/bin
             const fallbackPath = `${process.env.HOME}/bin`;
-            core.info(`/usr/local/bin is not writable. Falling back to ${fallbackPath}...`);
+            destinationPath = `${fallbackPath}/helm`;
+            core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
             yield exec.exec(`mkdir -p ${fallbackPath}`);
-            yield exec.exec(`mv ${helmBinaryPath} ${fallbackPath}/helm`);
+            yield exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield exec.exec(`chmod +x ${destinationPath}`);
-        core.info(`Helm ${version} installed successfully.`);
+        core.info(`Helm ${version} installed successfully at ${destinationPath}.`);
     });
 }
 function installKubectl(version) {
