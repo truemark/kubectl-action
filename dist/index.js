@@ -179,6 +179,39 @@ function installYQ(version) {
         core.info(`YQ ${version} installed successfully at ${destinationPath}.`);
     });
 }
+function installArgoCD(version) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.info(`Installing ArgoCD CLI version ${version}...`);
+        let argocdUrl;
+        // Map 'latest' to the latest release version
+        if (version === 'latest') {
+            argocdUrl = 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64';
+        }
+        else {
+            argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
+        }
+        const argocdBinaryPath = '/tmp/argocd';
+        let destinationPath = '/usr/local/bin/argocd';
+        try {
+            core.info(`Downloading ArgoCD CLI from ${argocdUrl}...`);
+            yield exec.exec(`curl -sSL -o ${argocdBinaryPath} ${argocdUrl}`);
+            core.info(`Attempting to move ArgoCD binary to ${destinationPath}...`);
+            yield exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+        }
+        catch (error) {
+            // Fallback logic for non-writable /usr/local/bin
+            const fallbackPath = `${process.env.HOME}/bin`;
+            destinationPath = `${fallbackPath}/argocd`;
+            core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+            yield exec.exec(`mkdir -p ${fallbackPath}`);
+            yield exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+            core.addPath(fallbackPath); // Add fallbackPath to PATH
+        }
+        core.info(`ArgoCD CLI ${version} installed successfully at ${destinationPath}.`);
+    });
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -186,9 +219,11 @@ function run() {
             const helmEnabled = core.getInput('helm-enabled') === 'true';
             const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
             const yqEnabled = core.getInput('yq-enabled') === 'true';
+            const argocdEnabled = core.getInput('argocd-enabled') === 'true';
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
+            const argocdVersion = core.getInput('argocd-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
             const command = core.getInput('command'); // This is optional
             // Handle Base64-encoded KUBECONFIG
@@ -207,6 +242,9 @@ function run() {
             }
             if (yqEnabled) {
                 yield installYQ(yqVersion);
+            }
+            if (argocdEnabled) {
+                yield installArgoCD(argocdVersion);
             }
             // Check if a command is supplied
             if (command && command.trim()) {

@@ -141,15 +141,54 @@ async function installYQ(version: string): Promise<void> {
   core.info(`YQ ${version} installed successfully at ${destinationPath}.`);
 }
 
+async function installArgoCD(version: string): Promise<void> {
+  core.info(`Installing ArgoCD CLI version ${version}...`);
+
+  let argocdUrl: string;
+
+  // Map 'latest' to the latest release version
+  if (version === 'latest') {
+    argocdUrl = 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64';
+  } else {
+    argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
+  }
+
+  const argocdBinaryPath = '/tmp/argocd';
+  let destinationPath = '/usr/local/bin/argocd';
+
+  try {
+    core.info(`Downloading ArgoCD CLI from ${argocdUrl}...`);
+    await exec.exec(`curl -sSL -o ${argocdBinaryPath} ${argocdUrl}`);
+
+    core.info(`Attempting to move ArgoCD binary to ${destinationPath}...`);
+    await exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+  } catch (error) {
+    // Fallback logic for non-writable /usr/local/bin
+    const fallbackPath = `${process.env.HOME}/bin`;
+    destinationPath = `${fallbackPath}/argocd`;
+
+    core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+    await exec.exec(`mkdir -p ${fallbackPath}`);
+    await exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
+    await exec.exec(`chmod +x ${destinationPath}`);
+    core.addPath(fallbackPath); // Add fallbackPath to PATH
+  }
+
+  core.info(`ArgoCD CLI ${version} installed successfully at ${destinationPath}.`);
+}
+
 async function run(): Promise<void> {
   try {
     // Read inputs
     const helmEnabled = core.getInput('helm-enabled') === 'true';
     const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
     const yqEnabled = core.getInput('yq-enabled') === 'true';
+    const argocdEnabled = core.getInput('argocd-enabled') === 'true';
     const helmVersion = core.getInput('helm-version');
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
+    const argocdVersion = core.getInput('argocd-version');
     const kubeconfigBase64 = core.getInput('kubeconfig');
     const command = core.getInput('command'); // This is optional
 
@@ -171,6 +210,10 @@ async function run(): Promise<void> {
 
     if (yqEnabled) {
       await installYQ(yqVersion);
+    }
+
+    if (argocdEnabled) {
+      await installArgoCD(argocdVersion);
     }
 
     // Check if a command is supplied
