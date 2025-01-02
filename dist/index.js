@@ -212,6 +212,39 @@ function installArgoCD(version) {
         core.info(`ArgoCD CLI ${version} installed successfully at ${destinationPath}.`);
     });
 }
+function installArgoCLI(version) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.info(`Installing Argo CLI version ${version}...`);
+        let argoUrl;
+        // Map 'latest' to the latest release version
+        if (version === 'latest' || !version.trim()) {
+            argoUrl = 'https://github.com/argoproj/argo-workflows/releases/latest/download/argo-linux-amd64';
+        }
+        else {
+            argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/argo-linux-amd64`;
+        }
+        const argoBinaryPath = '/tmp/argo';
+        let destinationPath = '/usr/local/bin/argo';
+        try {
+            core.info(`Downloading Argo CLI from ${argoUrl}...`);
+            yield exec.exec(`curl -sSL -o ${argoBinaryPath} ${argoUrl}`);
+            core.info(`Attempting to move Argo CLI binary to ${destinationPath}...`);
+            yield exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+        }
+        catch (error) {
+            // Fallback logic for non-writable /usr/local/bin
+            const fallbackPath = `${process.env.HOME}/bin`;
+            destinationPath = `${fallbackPath}/argo`;
+            core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
+            yield exec.exec(`mkdir -p ${fallbackPath}`);
+            yield exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
+            yield exec.exec(`chmod +x ${destinationPath}`);
+            core.addPath(fallbackPath); // Add fallbackPath to PATH
+        }
+        core.info(`Argo CLI ${version || 'latest'} installed successfully at ${destinationPath}.`);
+    });
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -220,10 +253,12 @@ function run() {
             const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
             const yqEnabled = core.getInput('yq-enabled') === 'true';
             const argocdEnabled = core.getInput('argocd-enabled') === 'true';
+            const argoEnabled = core.getInput('argo-enabled') === 'true';
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
+            const argoVersion = core.getInput('argo-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
             const command = core.getInput('command'); // This is optional
             // Handle Base64-encoded KUBECONFIG
@@ -245,6 +280,9 @@ function run() {
             }
             if (argocdEnabled) {
                 yield installArgoCD(argocdVersion);
+            }
+            if (argoEnabled) {
+                yield installArgoCLI(argoVersion);
             }
             // Check if a command is supplied
             if (command && command.trim()) {

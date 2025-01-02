@@ -36,6 +36,14 @@ inputs:
     description: 'Version of ArgoCD CLI to install (use "latest" for the latest version)'
     required: false
     default: 'latest'
+  argo-enabled:
+    description: 'Enable Argo CLI installation'
+    required: false
+    default: 'false'
+  argo-version:
+    description: 'Version of Argo CLI to install (use "latest" for the latest version)'
+    required: false
+    default: 'latest'
   command:
     description: "Command to execute after installing tools"
     required: false
