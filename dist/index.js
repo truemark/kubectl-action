@@ -221,7 +221,7 @@ function installArgoCLI(version) {
             core.info('Fetching the latest version of Argo CLI...');
             try {
                 const response = yield axios_1.default.get('https://api.github.com/repos/argoproj/argo-workflows/releases/latest', { headers: { Accept: 'application/vnd.github.v3+json' } });
-                version = response.data.tag_name.replace(/^v/, ''); // Extract version without "v" prefix
+                version = response.data.tag_name; // Keep the "v" prefix
                 core.info(`Latest version resolved to ${version}.`);
             }
             catch (error) {
@@ -229,8 +229,11 @@ function installArgoCLI(version) {
                 return;
             }
         }
+        else if (!version.startsWith('v')) {
+            version = `v${version}`; // Add "v" prefix if not present
+        }
         // Construct the download URL
-        argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/argo-linux-amd64`;
+        argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/${version}/argo-linux-amd64`;
         const argoBinaryPath = '/tmp/argo';
         let destinationPath = '/usr/local/bin/argo';
         try {
