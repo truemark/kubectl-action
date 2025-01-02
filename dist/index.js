@@ -216,13 +216,21 @@ function installArgoCLI(version) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`Installing Argo CLI version ${version}...`);
         let argoUrl;
-        // Map 'latest' to the latest release version
+        // Resolve version
         if (version === 'latest' || !version.trim()) {
-            argoUrl = 'https://github.com/argoproj/argo-workflows/releases/latest/download/argo-linux-amd64';
+            core.info('Fetching the latest version of Argo CLI...');
+            try {
+                const response = yield axios_1.default.get('https://api.github.com/repos/argoproj/argo-workflows/releases/latest', { headers: { Accept: 'application/vnd.github.v3+json' } });
+                version = response.data.tag_name.replace(/^v/, ''); // Extract version without "v" prefix
+                core.info(`Latest version resolved to ${version}.`);
+            }
+            catch (error) {
+                core.setFailed(`Failed to fetch the latest version of Argo CLI: ${error.message}`);
+                return;
+            }
         }
-        else {
-            argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/argo-linux-amd64`;
-        }
+        // Construct the download URL
+        argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/argo-linux-amd64`;
         const argoBinaryPath = '/tmp/argo';
         let destinationPath = '/usr/local/bin/argo';
         try {
@@ -242,7 +250,7 @@ function installArgoCLI(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        core.info(`Argo CLI ${version || 'latest'} installed successfully at ${destinationPath}.`);
+        core.info(`Argo CLI ${version} installed successfully at ${destinationPath}.`);
     });
 }
 function run() {
