@@ -181,52 +181,49 @@ async function installArgoCD(version: string): Promise<void> {
 async function installArgoCLI(version: string): Promise<void> {
   core.info(`Installing Argo CLI version ${version}...`);
 
-  let argoUrl: string;
-
-  // Resolve version
-  if (version === 'latest' || !version.trim()) {
-    core.info('Fetching the latest version of Argo CLI...');
-    try {
-      const response = await axios.get(
-        'https://api.github.com/repos/argoproj/argo-workflows/releases/latest',
-        { headers: { Accept: 'application/vnd.github.v3+json' } }
-      );
-      version = response.data.tag_name; // Keep the "v" prefix
-      core.info(`Latest version resolved to ${version}.`);
-    } catch (error) {
-      core.setFailed(`Failed to fetch the latest version of Argo CLI: ${(error as Error).message}`);
-      return;
-    }
-  } else if (!version.startsWith('v')) {
-    version = `v${version}`; // Add "v" prefix if not present
-  }
+  // Detect OS
+  const osType = process.platform === 'darwin' ? 'darwin' : 'linux';
+  const argoFile = `argo-${osType}-amd64.gz`;
+  const argoBinaryPath = `/tmp/argo-${osType}-amd64`;
 
   // Construct the download URL
-  argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/${version}/argo-linux-amd64`;
-
-  const argoBinaryPath = '/tmp/argo';
-  let destinationPath = '/usr/local/bin/argo';
+  const argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/${argoFile}`;
 
   try {
+    // Download the compressed binary
     core.info(`Downloading Argo CLI from ${argoUrl}...`);
-    await exec.exec(`curl -sSL -o ${argoBinaryPath} ${argoUrl}`);
+    await exec.exec(`curl -sSL -o ${argoBinaryPath}.gz ${argoUrl}`);
 
-    core.info(`Attempting to move Argo CLI binary to ${destinationPath}...`);
-    await exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    // Unzip the binary
+    core.info('Unzipping the binary...');
+    await exec.exec(`gunzip ${argoBinaryPath}.gz`);
+
+    // Make the binary executable
+    core.info('Making the binary executable...');
+    await exec.exec(`chmod +x ${argoBinaryPath}`);
+
+    // Move the binary to a system path
+    let destinationPath = '/usr/local/bin/argo';
+    try {
+      core.info(`Moving Argo CLI to ${destinationPath}...`);
+      await exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
+    } catch (error) {
+      // Handle fallback if /usr/local/bin is not writable
+      const fallbackPath = `${process.env.HOME}/bin/argo`;
+      destinationPath = fallbackPath;
+      core.info(`/usr/local/bin is not writable. Falling back to ${fallbackPath}...`);
+      await exec.exec(`mkdir -p ${path.dirname(fallbackPath)}`);
+      await exec.exec(`mv ${argoBinaryPath} ${fallbackPath}`);
+      core.addPath(path.dirname(fallbackPath));
+    }
+
+    // Test the installation
+    core.info('Testing Argo CLI installation...');
+    await exec.exec(`${destinationPath} version`);
+    core.info(`Argo CLI ${version} installed successfully.`);
   } catch (error) {
-    // Fallback logic for non-writable /usr/local/bin
-    const fallbackPath = `${process.env.HOME}/bin`;
-    destinationPath = `${fallbackPath}/argo`;
-
-    core.info(`/usr/local/bin is not writable. Falling back to ${destinationPath}...`);
-    await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
-    core.addPath(fallbackPath); // Add fallbackPath to PATH
+    core.setFailed(`Failed to install Argo CLI: ${(error as Error).message}`);
   }
-
-  core.info(`Argo CLI ${version} installed successfully at ${destinationPath}.`);
 }
 
 async function run(): Promise<void> {
