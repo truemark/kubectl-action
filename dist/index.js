@@ -219,7 +219,11 @@ function installArgoCLI(version) {
         const osType = process.platform === 'darwin' ? 'darwin' : 'linux';
         const argoFile = `argo-${osType}-amd64.gz`;
         const argoBinaryPath = `/tmp/argo-${osType}-amd64`;
-        const downloadUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/${argoFile}`;
+        // Ensure version starts with "v"
+        if (!version.startsWith('v')) {
+            version = `v${version}`;
+        }
+        const downloadUrl = `https://github.com/argoproj/argo-workflows/releases/download/${version}/${argoFile}`;
         try {
             // Download the compressed binary
             core.info(`Downloading Argo CLI from ${downloadUrl}...`);
