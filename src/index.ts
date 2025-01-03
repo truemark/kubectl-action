@@ -190,7 +190,7 @@ async function installArgoCLI(version: string, debugEnabled: boolean): Promise<v
 
 async function run(): Promise<void> {
   try {
-    const debugEnabled = core.getInput('debug-enabled') === 'true';
+    const debugEnabled = core.getInput('tools-debug-enabled') === 'true';
 
     const helmEnabled = core.getInput('helm-enabled') === 'true';
     const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';

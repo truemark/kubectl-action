@@ -232,7 +232,7 @@ function installArgoCLI(version, debugEnabled) {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const debugEnabled = core.getInput('debug-enabled') === 'true';
+            const debugEnabled = core.getInput('tools-debug-enabled') === 'true';
             const helmEnabled = core.getInput('helm-enabled') === 'true';
             const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
             const yqEnabled = core.getInput('yq-enabled') === 'true';

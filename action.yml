@@ -47,7 +47,7 @@ inputs:
   command:
     description: "Command to execute after installing tools"
     required: false
-  debug-enabled:
+  tools-debug-enabled:
     description: "Enable verbose debug logs"
     required: false
     default: 'false'
