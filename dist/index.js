@@ -61,7 +61,7 @@ function createSymlink(targetPath, linkPath) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             core.info(`Creating symlink: ${linkPath} -> ${targetPath}`);
-            yield exec.exec(`ln -sf ${targetPath} ${linkPath}`);
+            yield exec.exec(`sudo ln -sf ${targetPath} ${linkPath}`);
             core.info(`Symlink created successfully: ${linkPath} -> ${targetPath}`);
         }
         catch (error) {

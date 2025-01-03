@@ -7,7 +7,7 @@ import * as path from 'path';
 async function createSymlink(targetPath: string, linkPath: string): Promise<void> {
   try {
     core.info(`Creating symlink: ${linkPath} -> ${targetPath}`);
-    await exec.exec(`ln -sf ${targetPath} ${linkPath}`);
+    await exec.exec(`sudo ln -sf ${targetPath} ${linkPath}`);
     core.info(`Symlink created successfully: ${linkPath} -> ${targetPath}`);
   } catch (error) {
     core.warning(`Failed to create symlink for ${targetPath}: ${(error as Error).message}`);
