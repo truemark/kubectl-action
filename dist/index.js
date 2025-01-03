@@ -219,15 +219,20 @@ function installArgoCLI(version) {
         const osType = process.platform === 'darwin' ? 'darwin' : 'linux';
         const argoFile = `argo-${osType}-amd64.gz`;
         const argoBinaryPath = `/tmp/argo-${osType}-amd64`;
-        // Construct the download URL
-        const argoUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/${argoFile}`;
+        const downloadUrl = `https://github.com/argoproj/argo-workflows/releases/download/v${version}/${argoFile}`;
         try {
             // Download the compressed binary
-            core.info(`Downloading Argo CLI from ${argoUrl}...`);
-            yield exec.exec(`curl -sSL -o ${argoBinaryPath}.gz ${argoUrl}`);
+            core.info(`Downloading Argo CLI from ${downloadUrl}...`);
+            yield exec.exec(`curl -sSL -o ${argoBinaryPath}.gz ${downloadUrl}`);
+            // Verify if the file is a valid gzip
+            core.info('Verifying the downloaded file...');
+            const fileType = yield exec.getExecOutput(`file ${argoBinaryPath}.gz`);
+            if (!fileType.stdout.includes('gzip compressed data')) {
+                throw new Error('Downloaded file is not in gzip format.');
+            }
             // Unzip the binary
             core.info('Unzipping the binary...');
-            yield exec.exec(`gunzip ${argoBinaryPath}.gz`);
+            yield exec.exec(`gunzip -f ${argoBinaryPath}.gz`);
             // Make the binary executable
             core.info('Making the binary executable...');
             yield exec.exec(`chmod +x ${argoBinaryPath}`);
