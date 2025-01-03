@@ -4,16 +4,6 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 
-async function createSymlink(targetPath: string, linkPath: string): Promise<void> {
-  try {
-    core.info(`Creating symlink: ${linkPath} -> ${targetPath}`);
-    await exec.exec(`sudo ln -sf ${targetPath} ${linkPath}`);
-    core.info(`Symlink created successfully: ${linkPath} -> ${targetPath}`);
-  } catch (error) {
-    core.warning(`Failed to create symlink for ${targetPath}: ${(error as Error).message}`);
-  }
-}
-
 async function handleKubeconfig(kubeconfigBase64: string): Promise<void> {
   if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
     core.info('No Base64-encoded KUBECONFIG provided. Skipping configuration.');
@@ -78,7 +68,6 @@ async function installHelm(version: string): Promise<void> {
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await createSymlink(destinationPath, '/usr/local/bin/helm');
   core.info(`Helm ${version} installed successfully at ${destinationPath}.`);
 }
 
@@ -117,7 +106,6 @@ async function installKubectl(version: string): Promise<void> {
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await createSymlink(destinationPath, '/usr/local/bin/kubectl');
   core.info(`Kubectl ${version} installed successfully at ${destinationPath}.`);
 }
 
@@ -150,7 +138,6 @@ async function installYQ(version: string): Promise<void> {
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await createSymlink(destinationPath, '/usr/local/bin/yq');
   core.info(`YQ ${version} installed successfully at ${destinationPath}.`);
 }
 
@@ -188,7 +175,6 @@ async function installArgoCD(version: string): Promise<void> {
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await createSymlink(destinationPath, '/usr/local/bin/argocd');
   core.info(`ArgoCD CLI ${version} installed successfully at ${destinationPath}.`);
 }
 
@@ -240,7 +226,6 @@ async function installArgoCLI(version: string): Promise<void> {
     core.addPath(fallbackPath); // Add fallbackPath to PATH
   }
 
-  await createSymlink(destinationPath, '/usr/local/bin/argo');
   core.info(`Argo CLI ${version} installed successfully at ${destinationPath}.`);
 }
 

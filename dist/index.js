@@ -57,18 +57,6 @@ const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
-function createSymlink(targetPath, linkPath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            core.info(`Creating symlink: ${linkPath} -> ${targetPath}`);
-            yield exec.exec(`sudo ln -sf ${targetPath} ${linkPath}`);
-            core.info(`Symlink created successfully: ${linkPath} -> ${targetPath}`);
-        }
-        catch (error) {
-            core.warning(`Failed to create symlink for ${targetPath}: ${error.message}`);
-        }
-    });
-}
 function handleKubeconfig(kubeconfigBase64) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
@@ -125,7 +113,6 @@ function installHelm(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield createSymlink(destinationPath, '/usr/local/bin/helm');
         core.info(`Helm ${version} installed successfully at ${destinationPath}.`);
     });
 }
@@ -161,7 +148,6 @@ function installKubectl(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield createSymlink(destinationPath, '/usr/local/bin/kubectl');
         core.info(`Kubectl ${version} installed successfully at ${destinationPath}.`);
     });
 }
@@ -190,7 +176,6 @@ function installYQ(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield createSymlink(destinationPath, '/usr/local/bin/yq');
         core.info(`YQ ${version} installed successfully at ${destinationPath}.`);
     });
 }
@@ -224,7 +209,6 @@ function installArgoCD(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield createSymlink(destinationPath, '/usr/local/bin/argocd');
         core.info(`ArgoCD CLI ${version} installed successfully at ${destinationPath}.`);
     });
 }
@@ -269,7 +253,6 @@ function installArgoCLI(version) {
             yield exec.exec(`chmod +x ${destinationPath}`);
             core.addPath(fallbackPath); // Add fallbackPath to PATH
         }
-        yield createSymlink(destinationPath, '/usr/local/bin/argo');
         core.info(`Argo CLI ${version} installed successfully at ${destinationPath}.`);
     });
 }
