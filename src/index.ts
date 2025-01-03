@@ -11,6 +11,11 @@ function log(message: string, debugEnabled: boolean): void {
   }
 }
 
+async function execCommand(command: string, args: string[] = [], debugEnabled: boolean): Promise<void> {
+  const options = debugEnabled ? {} : { silent: true };  // Silent unless debugging is enabled
+  await exec.exec(command, args, options);
+}
+
 async function handleKubeconfig(kubeconfigBase64: string, debugEnabled: boolean): Promise<void> {
   if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
     core.info('No Base64-encoded KUBECONFIG provided. Skipping configuration.');
@@ -38,22 +43,22 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
     : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
 
   log(`Downloading Helm from ${helmUrl}`, debugEnabled);
-  await exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
-  await exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
+  await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
+  await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
 
   const helmBinaryPath = '/tmp/linux-amd64/helm';
   let destinationPath = '/usr/local/bin/helm';
 
   try {
-    await exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('mv', [helmBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
   } catch (error) {
     const fallbackPath = `${process.env.HOME}/bin`;
     destinationPath = `${fallbackPath}/helm`;
     log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-    await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+    await execCommand('mv', [helmBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
     core.addPath(fallbackPath);
   }
 
@@ -73,16 +78,16 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
   let destinationPath = '/usr/local/bin/kubectl';
 
   try {
-    await exec.exec(`curl -sSL -o ${kubectlBinaryPath} ${kubectlUrl}`);
-    await exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('curl', ['-sSL', '-o', kubectlBinaryPath, kubectlUrl], debugEnabled);
+    await execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
   } catch (error) {
     const fallbackPath = `${process.env.HOME}/bin`;
     destinationPath = `${fallbackPath}/kubectl`;
     log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-    await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+    await execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
     core.addPath(fallbackPath);
   }
 
@@ -101,16 +106,16 @@ async function installYQ(version: string, debugEnabled: boolean): Promise<void> 
   let destinationPath = '/usr/local/bin/yq';
 
   try {
-    await exec.exec(`curl -sSL -o ${yqBinaryPath} ${yqUrl}`);
-    await exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('curl', ['-sSL', '-o', yqBinaryPath, yqUrl], debugEnabled);
+    await execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
   } catch (error) {
     const fallbackPath = `${process.env.HOME}/bin`;
     destinationPath = `${fallbackPath}/yq`;
     log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-    await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+    await execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
     core.addPath(fallbackPath);
   }
 
@@ -129,16 +134,16 @@ async function installArgoCD(version: string, debugEnabled: boolean): Promise<vo
   let destinationPath = '/usr/local/bin/argocd';
 
   try {
-    await exec.exec(`curl -sSL -o ${argocdBinaryPath} ${argocdUrl}`);
-    await exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
+    await execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
+    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
   } catch (error) {
     const fallbackPath = `${process.env.HOME}/bin`;
     destinationPath = `${fallbackPath}/argocd`;
     log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-    await exec.exec(`mkdir -p ${fallbackPath}`);
-    await exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
-    await exec.exec(`chmod +x ${destinationPath}`);
+    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
     core.addPath(fallbackPath);
   }
 
@@ -160,19 +165,20 @@ async function installArgoCLI(version: string, debugEnabled: boolean): Promise<v
 
   log(`Downloading Argo CLI from ${downloadUrl}`, debugEnabled);
   try {
-    await exec.exec(`curl -sSL -o ${argoBinaryPath}.gz ${downloadUrl}`);
-    await exec.exec(`gunzip -f ${argoBinaryPath}.gz`);
-    await exec.exec(`chmod +x ${argoBinaryPath}`);
+    await execCommand('curl', ['-sSL', '-o', `${argoBinaryPath}.gz`, downloadUrl], debugEnabled);
+    await execCommand('gunzip', ['-f', `${argoBinaryPath}.gz`], debugEnabled);
+    await execCommand('chmod', ['+x', argoBinaryPath], debugEnabled);
+
     let destinationPath = '/usr/local/bin/argo';
 
     try {
-      await exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
+      await execCommand('mv', [argoBinaryPath, destinationPath], debugEnabled);
     } catch (error) {
-      const fallbackPath = `${process.env.HOME}/bin/argo`;
-      destinationPath = fallbackPath;
-      log(`/usr/local/bin not writable. Falling back to ${fallbackPath}`, debugEnabled);
-      await exec.exec(`mkdir -p ${path.dirname(fallbackPath)}`);
-      await exec.exec(`mv ${argoBinaryPath} ${fallbackPath}`);
+      const fallbackPath = `${process.env.HOME}/bin`;
+      destinationPath = `${fallbackPath}/argo`;
+      log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
+      await execCommand('mkdir', ['-p', path.dirname(fallbackPath)], debugEnabled);
+      await execCommand('mv', [argoBinaryPath, destinationPath], debugEnabled);
       core.addPath(path.dirname(fallbackPath));
     }
 

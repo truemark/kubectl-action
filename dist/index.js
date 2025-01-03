@@ -63,6 +63,12 @@ function log(message, debugEnabled) {
         core.info(message);
     }
 }
+function execCommand(command_1) {
+    return __awaiter(this, arguments, void 0, function* (command, args = [], debugEnabled) {
+        const options = debugEnabled ? {} : { silent: true }; // Silent unless debugging is enabled
+        yield exec.exec(command, args, options);
+    });
+}
 function handleKubeconfig(kubeconfigBase64, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!kubeconfigBase64 || kubeconfigBase64.trim() === '') {
@@ -90,21 +96,21 @@ function installHelm(version, debugEnabled) {
             ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
             : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
         log(`Downloading Helm from ${helmUrl}`, debugEnabled);
-        yield exec.exec(`curl -sSL -o /tmp/helm.tar.gz ${helmUrl}`);
-        yield exec.exec(`tar -xz -f /tmp/helm.tar.gz -C /tmp`);
+        yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
+        yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         const helmBinaryPath = '/tmp/linux-amd64/helm';
         let destinationPath = '/usr/local/bin/helm';
         try {
-            yield exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('mv', [helmBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
         }
         catch (error) {
             const fallbackPath = `${process.env.HOME}/bin`;
             destinationPath = `${fallbackPath}/helm`;
             log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-            yield exec.exec(`mkdir -p ${fallbackPath}`);
-            yield exec.exec(`mv ${helmBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+            yield execCommand('mv', [helmBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
             core.addPath(fallbackPath);
         }
         core.info(`Helm ${version} installed successfully.`);
@@ -121,17 +127,17 @@ function installKubectl(version, debugEnabled) {
         const kubectlBinaryPath = '/tmp/kubectl';
         let destinationPath = '/usr/local/bin/kubectl';
         try {
-            yield exec.exec(`curl -sSL -o ${kubectlBinaryPath} ${kubectlUrl}`);
-            yield exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('curl', ['-sSL', '-o', kubectlBinaryPath, kubectlUrl], debugEnabled);
+            yield execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
         }
         catch (error) {
             const fallbackPath = `${process.env.HOME}/bin`;
             destinationPath = `${fallbackPath}/kubectl`;
             log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-            yield exec.exec(`mkdir -p ${fallbackPath}`);
-            yield exec.exec(`mv ${kubectlBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+            yield execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
             core.addPath(fallbackPath);
         }
         core.info(`Kubectl ${version} installed successfully.`);
@@ -147,17 +153,17 @@ function installYQ(version, debugEnabled) {
         const yqBinaryPath = '/tmp/yq';
         let destinationPath = '/usr/local/bin/yq';
         try {
-            yield exec.exec(`curl -sSL -o ${yqBinaryPath} ${yqUrl}`);
-            yield exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('curl', ['-sSL', '-o', yqBinaryPath, yqUrl], debugEnabled);
+            yield execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
         }
         catch (error) {
             const fallbackPath = `${process.env.HOME}/bin`;
             destinationPath = `${fallbackPath}/yq`;
             log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-            yield exec.exec(`mkdir -p ${fallbackPath}`);
-            yield exec.exec(`mv ${yqBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+            yield execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
             core.addPath(fallbackPath);
         }
         core.info(`YQ ${version} installed successfully.`);
@@ -173,17 +179,17 @@ function installArgoCD(version, debugEnabled) {
         const argocdBinaryPath = '/tmp/argocd';
         let destinationPath = '/usr/local/bin/argocd';
         try {
-            yield exec.exec(`curl -sSL -o ${argocdBinaryPath} ${argocdUrl}`);
-            yield exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
+            yield execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
+            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
         }
         catch (error) {
             const fallbackPath = `${process.env.HOME}/bin`;
             destinationPath = `${fallbackPath}/argocd`;
             log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-            yield exec.exec(`mkdir -p ${fallbackPath}`);
-            yield exec.exec(`mv ${argocdBinaryPath} ${destinationPath}`);
-            yield exec.exec(`chmod +x ${destinationPath}`);
+            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
             core.addPath(fallbackPath);
         }
         core.info(`ArgoCD CLI ${version} installed successfully.`);
@@ -201,19 +207,19 @@ function installArgoCLI(version, debugEnabled) {
         const downloadUrl = `https://github.com/argoproj/argo-workflows/releases/download/${version}/${argoFile}`;
         log(`Downloading Argo CLI from ${downloadUrl}`, debugEnabled);
         try {
-            yield exec.exec(`curl -sSL -o ${argoBinaryPath}.gz ${downloadUrl}`);
-            yield exec.exec(`gunzip -f ${argoBinaryPath}.gz`);
-            yield exec.exec(`chmod +x ${argoBinaryPath}`);
+            yield execCommand('curl', ['-sSL', '-o', `${argoBinaryPath}.gz`, downloadUrl], debugEnabled);
+            yield execCommand('gunzip', ['-f', `${argoBinaryPath}.gz`], debugEnabled);
+            yield execCommand('chmod', ['+x', argoBinaryPath], debugEnabled);
             let destinationPath = '/usr/local/bin/argo';
             try {
-                yield exec.exec(`mv ${argoBinaryPath} ${destinationPath}`);
+                yield execCommand('mv', [argoBinaryPath, destinationPath], debugEnabled);
             }
             catch (error) {
-                const fallbackPath = `${process.env.HOME}/bin/argo`;
-                destinationPath = fallbackPath;
-                log(`/usr/local/bin not writable. Falling back to ${fallbackPath}`, debugEnabled);
-                yield exec.exec(`mkdir -p ${path.dirname(fallbackPath)}`);
-                yield exec.exec(`mv ${argoBinaryPath} ${fallbackPath}`);
+                const fallbackPath = `${process.env.HOME}/bin`;
+                destinationPath = `${fallbackPath}/argo`;
+                log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
+                yield execCommand('mkdir', ['-p', path.dirname(fallbackPath)], debugEnabled);
+                yield execCommand('mv', [argoBinaryPath, destinationPath], debugEnabled);
                 core.addPath(path.dirname(fallbackPath));
             }
             core.info(`Argo CLI ${version} installed successfully.`);
