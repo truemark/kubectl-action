@@ -1,3 +1,5 @@
 .idea
 kubeconfig
 test.sh
+action.yml
+node_modules/

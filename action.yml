@@ -1,9 +1,59 @@
-name: 'github-kubectl'
-description: 'Allows GitHub Actions to run kubectl commands.'
+name: 'Install Kubernetes Tools'
+description: 'A GitHub Action to install Helm, Kubectl and YQ.'
+inputs:
+  helm-enabled:
+    description: 'Enable installation of Helm'
+    required: false
+    default: 'false'
+  kubectl-enabled:
+    description: 'Enable installation of Kubectl'
+    required: false
+    default: 'false'
+  yq-enabled:
+    description: 'Enable installation of YQ'
+    required: false
+    default: 'false'
+  helm-version:
+    description: 'The version of Helm to install'
+    required: false
+    default: 'stable'
+  kubectl-version:
+    description: 'The version of Kubectl to install'
+    required: false
+    default: 'stable'
+  yq-version:
+    description: 'The version of YQ to install'
+    required: false
+    default: 'latest'
+  kubeconfig:
+    description: 'Base64-encoded KUBECONFIG content'
+    required: false
+  argocd-enabled:
+    description: 'Enable ArgoCD CLI installation'
+    required: false
+    default: 'false'
+  argocd-version:
+    description: 'Version of ArgoCD CLI to install (use "latest" for the latest version)'
+    required: false
+    default: 'latest'
+  argo-enabled:
+    description: 'Enable Argo CLI installation'
+    required: false
+    default: 'false'
+  argo-version:
+    description: 'Version of Argo CLI to install (use "v3.6.2" for the latest version)'
+    required: false
+    default: 'v3.6.2'
+  command:
+    description: "Command to execute after installing tools"
+    required: false
+  tools-debug-enabled:
+    description: "Enable verbose debug logs"
+    required: false
+    default: 'false'
 outputs:
-  result:
-    description: "Output returned by your Helm or kubectl command"
+  output:
+    description: 'Output of the kubectl command'
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-
+  using: 'node20'
+  main: 'dist/index.js'
