@@ -63,6 +63,32 @@ function log(message, debugEnabled) {
         core.info(message);
     }
 }
+function isToolInstalled(command, versionFlag, expectedVersion, debugEnabled) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let output = '';
+            const options = {
+                silent: !debugEnabled,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            };
+            yield exec.exec(command, [versionFlag], options);
+            // Extract the first line containing the version
+            const versionLine = output.split('\n').find(line => line.trim().startsWith('argo: v'));
+            if (versionLine) {
+                const installedVersion = versionLine.split('v')[1].trim(); // Get version number after "argo: v"
+                return installedVersion === expectedVersion;
+            }
+            return false;
+        }
+        catch (_a) {
+            return false; // Tool not installed or error in version check
+        }
+    });
+}
 function execCommand(command_1) {
     return __awaiter(this, arguments, void 0, function* (command, args = [], debugEnabled) {
         const options = debugEnabled ? {} : { silent: true }; // Silent unless debugging is enabled
@@ -91,6 +117,10 @@ function handleKubeconfig(kubeconfigBase64, debugEnabled) {
 }
 function installHelm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        if (yield isToolInstalled('helm', 'version --short --client', `v${version}`, debugEnabled)) {
+            core.info(`Helm version ${version} is already installed.`);
+            return;
+        }
         core.info(`Installing Helm version ${version}...`);
         const helmUrl = version === 'stable'
             ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
@@ -118,14 +148,18 @@ function installHelm(version, debugEnabled) {
 }
 function installKubectl(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        if (yield isToolInstalled('kubectl', 'version --client --short', `v${version}`, debugEnabled)) {
+            core.info(`Kubectl version ${version} is already installed.`);
+            return;
+        }
         core.info(`Installing Kubectl version ${version}...`);
         const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
         const kubectlUrl = version === 'stable'
             ? `https://dl.k8s.io/release/${(yield axios_1.default.get(stableVersionUrl)).data.trim()}/bin/linux/amd64/kubectl`
             : `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
-        log(`Downloading Kubectl from ${kubectlUrl}`, debugEnabled);
         const kubectlBinaryPath = '/tmp/kubectl';
         let destinationPath = '/usr/local/bin/kubectl';
+        log(`Downloading Kubectl from ${kubectlUrl}`, debugEnabled);
         try {
             yield execCommand('curl', ['-sSL', '-o', kubectlBinaryPath, kubectlUrl], debugEnabled);
             yield execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
@@ -145,13 +179,17 @@ function installKubectl(version, debugEnabled) {
 }
 function installYQ(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        if (yield isToolInstalled('yq', '--version', `version ${version}`, debugEnabled)) {
+            core.info(`YQ version ${version} is already installed.`);
+            return;
+        }
         core.info(`Installing YQ version ${version}...`);
         const yqUrl = version === 'latest'
             ? 'https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64'
             : `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
-        log(`Downloading YQ from ${yqUrl}`, debugEnabled);
         const yqBinaryPath = '/tmp/yq';
         let destinationPath = '/usr/local/bin/yq';
+        log(`Downloading YQ from ${yqUrl}`, debugEnabled);
         try {
             yield execCommand('curl', ['-sSL', '-o', yqBinaryPath, yqUrl], debugEnabled);
             yield execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
@@ -169,34 +207,12 @@ function installYQ(version, debugEnabled) {
         core.info(`YQ ${version} installed successfully.`);
     });
 }
-function installArgoCD(version, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.info(`Installing ArgoCD CLI version ${version}...`);
-        const argocdUrl = version === 'latest'
-            ? 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64'
-            : `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
-        log(`Downloading ArgoCD CLI from ${argocdUrl}`, debugEnabled);
-        const argocdBinaryPath = '/tmp/argocd';
-        let destinationPath = '/usr/local/bin/argocd';
-        try {
-            yield execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
-            yield execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
-            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
-        }
-        catch (error) {
-            const fallbackPath = `${process.env.HOME}/bin`;
-            destinationPath = `${fallbackPath}/argocd`;
-            log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
-            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
-            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
-            core.addPath(fallbackPath);
-        }
-        core.info(`ArgoCD CLI ${version} installed successfully.`);
-    });
-}
 function installArgoCLI(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        if (yield isToolInstalled('argo', '--version', `v${version}`, debugEnabled)) {
+            core.info(`Argo CLI version ${version} is already installed.`);
+            return;
+        }
         core.info(`Installing Argo CLI version ${version}...`);
         const osType = process.platform === 'darwin' ? 'darwin' : 'linux';
         const argoFile = `argo-${osType}-amd64.gz`;
@@ -227,6 +243,35 @@ function installArgoCLI(version, debugEnabled) {
         catch (error) {
             core.setFailed(`Failed to install Argo CLI: ${error.message}`);
         }
+    });
+}
+function installArgoCD(version, debugEnabled) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (yield isToolInstalled('argocd', 'version --client', `v${version}`, debugEnabled)) {
+            core.info(`ArgoCD CLI version ${version} is already installed.`);
+            return;
+        }
+        core.info(`Installing ArgoCD CLI version ${version}...`);
+        const argocdUrl = version === 'latest'
+            ? 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64'
+            : `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
+        const argocdBinaryPath = '/tmp/argocd';
+        let destinationPath = '/usr/local/bin/argocd';
+        log(`Downloading ArgoCD CLI from ${argocdUrl}`, debugEnabled);
+        try {
+            yield execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
+            yield execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
+            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+        }
+        catch (error) {
+            const fallbackPath = `${process.env.HOME}/bin`;
+            destinationPath = `${fallbackPath}/argocd`;
+            log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
+            yield execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+            yield execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+            core.addPath(fallbackPath);
+        }
+        core.info(`ArgoCD CLI ${version} installed successfully.`);
     });
 }
 function run() {

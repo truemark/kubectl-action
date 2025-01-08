@@ -11,6 +11,32 @@ function log(message: string, debugEnabled: boolean): void {
   }
 }
 
+async function isToolInstalled(command: string, versionFlag: string, expectedVersion: string, debugEnabled: boolean): Promise<boolean> {
+  try {
+    let output = '';
+    const options = {
+      silent: !debugEnabled,
+      listeners: {
+        stdout: (data: Buffer) => {
+          output += data.toString();
+        }
+      }
+    };
+    await exec.exec(command, [versionFlag], options);
+
+    // Extract the first line containing the version
+    const versionLine = output.split('\n').find(line => line.trim().startsWith('argo: v'));
+    if (versionLine) {
+      const installedVersion = versionLine.split('v')[1].trim();  // Get version number after "argo: v"
+      return installedVersion === expectedVersion;
+    }
+
+    return false;
+  } catch {
+    return false; // Tool not installed or error in version check
+  }
+}
+
 async function execCommand(command: string, args: string[] = [], debugEnabled: boolean): Promise<void> {
   const options = debugEnabled ? {} : { silent: true };  // Silent unless debugging is enabled
   await exec.exec(command, args, options);
@@ -36,8 +62,12 @@ async function handleKubeconfig(kubeconfigBase64: string, debugEnabled: boolean)
 }
 
 async function installHelm(version: string, debugEnabled: boolean): Promise<void> {
-  core.info(`Installing Helm version ${version}...`);
+  if (await isToolInstalled('helm', 'version --short --client', `v${version}`, debugEnabled)) {
+    core.info(`Helm version ${version} is already installed.`);
+    return;
+  }
 
+  core.info(`Installing Helm version ${version}...`);
   const helmUrl = version === 'stable'
     ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
     : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
@@ -66,17 +96,21 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
 }
 
 async function installKubectl(version: string, debugEnabled: boolean): Promise<void> {
-  core.info(`Installing Kubectl version ${version}...`);
+  if (await isToolInstalled('kubectl', 'version --client --short', `v${version}`, debugEnabled)) {
+    core.info(`Kubectl version ${version} is already installed.`);
+    return;
+  }
 
+  core.info(`Installing Kubectl version ${version}...`);
   const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
   const kubectlUrl = version === 'stable'
     ? `https://dl.k8s.io/release/${(await axios.get(stableVersionUrl)).data.trim()}/bin/linux/amd64/kubectl`
     : `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
 
-  log(`Downloading Kubectl from ${kubectlUrl}`, debugEnabled);
   const kubectlBinaryPath = '/tmp/kubectl';
   let destinationPath = '/usr/local/bin/kubectl';
 
+  log(`Downloading Kubectl from ${kubectlUrl}`, debugEnabled);
   try {
     await execCommand('curl', ['-sSL', '-o', kubectlBinaryPath, kubectlUrl], debugEnabled);
     await execCommand('mv', [kubectlBinaryPath, destinationPath], debugEnabled);
@@ -95,16 +129,20 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
 }
 
 async function installYQ(version: string, debugEnabled: boolean): Promise<void> {
-  core.info(`Installing YQ version ${version}...`);
+  if (await isToolInstalled('yq', '--version', `version ${version}`, debugEnabled)) {
+    core.info(`YQ version ${version} is already installed.`);
+    return;
+  }
 
+  core.info(`Installing YQ version ${version}...`);
   const yqUrl = version === 'latest'
     ? 'https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64'
     : `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
 
-  log(`Downloading YQ from ${yqUrl}`, debugEnabled);
   const yqBinaryPath = '/tmp/yq';
   let destinationPath = '/usr/local/bin/yq';
 
+  log(`Downloading YQ from ${yqUrl}`, debugEnabled);
   try {
     await execCommand('curl', ['-sSL', '-o', yqBinaryPath, yqUrl], debugEnabled);
     await execCommand('mv', [yqBinaryPath, destinationPath], debugEnabled);
@@ -122,35 +160,12 @@ async function installYQ(version: string, debugEnabled: boolean): Promise<void> 
   core.info(`YQ ${version} installed successfully.`);
 }
 
-async function installArgoCD(version: string, debugEnabled: boolean): Promise<void> {
-  core.info(`Installing ArgoCD CLI version ${version}...`);
-
-  const argocdUrl = version === 'latest'
-    ? 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64'
-    : `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
-
-  log(`Downloading ArgoCD CLI from ${argocdUrl}`, debugEnabled);
-  const argocdBinaryPath = '/tmp/argocd';
-  let destinationPath = '/usr/local/bin/argocd';
-
-  try {
-    await execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
-    await execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
-    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
-  } catch (error) {
-    const fallbackPath = `${process.env.HOME}/bin`;
-    destinationPath = `${fallbackPath}/argocd`;
-    log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
-    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
-    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
-    await execCommand('chmod', ['+x', destinationPath], debugEnabled);
-    core.addPath(fallbackPath);
+async function installArgoCLI(version: string, debugEnabled: boolean): Promise<void> {
+  if (await isToolInstalled('argo', '--version', `v${version}`, debugEnabled)) {
+    core.info(`Argo CLI version ${version} is already installed.`);
+    return;
   }
 
-  core.info(`ArgoCD CLI ${version} installed successfully.`);
-}
-
-async function installArgoCLI(version: string, debugEnabled: boolean): Promise<void> {
   core.info(`Installing Argo CLI version ${version}...`);
 
   const osType = process.platform === 'darwin' ? 'darwin' : 'linux';
@@ -186,6 +201,37 @@ async function installArgoCLI(version: string, debugEnabled: boolean): Promise<v
   } catch (error) {
     core.setFailed(`Failed to install Argo CLI: ${(error as Error).message}`);
   }
+}
+
+async function installArgoCD(version: string, debugEnabled: boolean): Promise<void> {
+  if (await isToolInstalled('argocd', 'version --client', `v${version}`, debugEnabled)) {
+    core.info(`ArgoCD CLI version ${version} is already installed.`);
+    return;
+  }
+
+  core.info(`Installing ArgoCD CLI version ${version}...`);
+  const argocdUrl = version === 'latest'
+    ? 'https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64'
+    : `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
+
+  const argocdBinaryPath = '/tmp/argocd';
+  let destinationPath = '/usr/local/bin/argocd';
+
+  log(`Downloading ArgoCD CLI from ${argocdUrl}`, debugEnabled);
+  try {
+    await execCommand('curl', ['-sSL', '-o', argocdBinaryPath, argocdUrl], debugEnabled);
+    await execCommand('chmod', ['+x', argocdBinaryPath], debugEnabled);
+    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+  } catch (error) {
+    const fallbackPath = `${process.env.HOME}/bin`;
+    destinationPath = `${fallbackPath}/argocd`;
+    log(`/usr/local/bin not writable. Falling back to ${destinationPath}`, debugEnabled);
+    await execCommand('mkdir', ['-p', fallbackPath], debugEnabled);
+    await execCommand('mv', [argocdBinaryPath, destinationPath], debugEnabled);
+    core.addPath(fallbackPath);
+  }
+
+  core.info(`ArgoCD CLI ${version} installed successfully.`);
 }
 
 async function run(): Promise<void> {
