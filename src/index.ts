@@ -38,8 +38,14 @@ async function isToolInstalled(command: string, versionFlag: string, expectedVer
 }
 
 async function execCommand(command: string, args: string[] = [], debugEnabled: boolean): Promise<void> {
-  const options = debugEnabled ? {} : { silent: true };  // Silent unless debugging is enabled
-  await exec.exec(command, args, options);
+  const options = debugEnabled ? { listeners: { stdout: (data: Buffer) => core.info(data.toString()) } } : { silent: true };
+  try {
+    await exec.exec(command, args, options);
+  } catch (error) {
+    core.error(`Error executing: ${command} ${args.join(' ')}`);
+    core.error((error as Error).message);
+    throw error;
+  }
 }
 
 async function handleKubeconfig(kubeconfigBase64: string, debugEnabled: boolean): Promise<void> {
@@ -62,7 +68,7 @@ async function handleKubeconfig(kubeconfigBase64: string, debugEnabled: boolean)
 }
 
 async function installHelm(version: string, debugEnabled: boolean): Promise<void> {
-  if (await isToolInstalled('helm', 'version --short --client', `v${version}`, debugEnabled)) {
+  if (await isToolInstalled('helm', 'version --short', `v${version}`, debugEnabled)) {
     core.info(`Helm version ${version} is already installed.`);
     return;
   }
@@ -279,6 +285,7 @@ async function run(): Promise<void> {
     if (command) {
       core.info(`Executing command: ${command}`);
       await execCommand('sh', ['-c', command], debugEnabled);
+      core.addPath(`${process.env.HOME}/bin`);
     }
 
   } catch (error) {
