@@ -250,6 +250,7 @@ async function run(): Promise<void> {
     const argocdVersion = core.getInput('argocd-version');
     const argoVersion = core.getInput('argo-version');
     const kubeconfigBase64 = core.getInput('kubeconfig');
+    const command = core.getInput('command');
 
     if (kubeconfigBase64) {
       await handleKubeconfig(kubeconfigBase64, debugEnabled);
@@ -273,6 +274,11 @@ async function run(): Promise<void> {
 
     if (argoEnabled) {
       await installArgoCLI(argoVersion, debugEnabled);
+    }
+
+    if (command) {
+      core.info(`Executing command: ${command}`);
+      await execCommand('sh', ['-c', command], debugEnabled);
     }
 
   } catch (error) {
