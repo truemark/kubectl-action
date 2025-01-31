@@ -297,32 +297,75 @@ function run() {
             const argocdVersion = core.getInput('argocd-version');
             const argoVersion = core.getInput('argo-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
+            let errorMessages = [];
             if (kubeconfigBase64) {
-                yield handleKubeconfig(kubeconfigBase64, debugEnabled);
+                try {
+                    yield handleKubeconfig(kubeconfigBase64, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ Kubeconfig handling failed: ${error.message}`);
+                }
             }
             if (helmEnabled) {
-                yield installHelm(helmVersion, debugEnabled);
+                try {
+                    yield installHelm(helmVersion, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ Helm installation failed: ${error.message}`);
+                }
             }
             if (kubectlEnabled) {
-                yield installKubectl(kubectlVersion, debugEnabled);
+                try {
+                    yield installKubectl(kubectlVersion, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ Kubectl installation failed: ${error.message}`);
+                }
             }
             if (yqEnabled) {
-                yield installYQ(yqVersion, debugEnabled);
+                try {
+                    yield installYQ(yqVersion, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ YQ installation failed: ${error.message}`);
+                }
             }
             if (argocdEnabled) {
-                yield installArgoCD(argocdVersion, debugEnabled);
+                try {
+                    yield installArgoCD(argocdVersion, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ ArgoCD installation failed: ${error.message}`);
+                }
             }
             if (argoEnabled) {
-                yield installArgoCLI(argoVersion, debugEnabled);
+                try {
+                    yield installArgoCLI(argoVersion, debugEnabled);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ Argo CLI installation failed: ${error.message}`);
+                }
             }
             if (command) {
-                core.info(`Executing command: ${command}`);
-                yield execCommand('sh', ['-c', command], debugEnabled);
-                core.addPath(`${process.env.HOME}/bin`);
+                try {
+                    core.info(`Executing command: ${command}`);
+                    yield execCommand('sh', ['-c', command], debugEnabled);
+                    core.addPath(`${process.env.HOME}/bin`);
+                }
+                catch (error) {
+                    errorMessages.push(`❌ Custom command execution failed: ${error.message}`);
+                }
+            }
+            if (errorMessages.length > 0) {
+                core.summary
+                    .addHeading('⚠️ Installation Failures')
+                    .addRaw(errorMessages.join('\n'))
+                    .write();
+                core.setFailed('One or more tools failed to install. Check GitHub Summary for details.');
             }
         }
         catch (error) {
-            core.setFailed(error.message);
+            core.setFailed(`Workflow execution failed: ${error.message}`);
         }
     });
 }

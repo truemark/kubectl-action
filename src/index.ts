@@ -258,38 +258,76 @@ async function run(): Promise<void> {
     const argoVersion = core.getInput('argo-version');
     const kubeconfigBase64 = core.getInput('kubeconfig');
 
+    let errorMessages: string[] = [];
+
     if (kubeconfigBase64) {
-      await handleKubeconfig(kubeconfigBase64, debugEnabled);
+      try {
+        await handleKubeconfig(kubeconfigBase64, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ Kubeconfig handling failed: ${(error as Error).message}`);
+      }
     }
 
     if (helmEnabled) {
-      await installHelm(helmVersion, debugEnabled);
+      try {
+        await installHelm(helmVersion, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ Helm installation failed: ${(error as Error).message}`);
+      }
     }
 
     if (kubectlEnabled) {
-      await installKubectl(kubectlVersion, debugEnabled);
+      try {
+        await installKubectl(kubectlVersion, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ Kubectl installation failed: ${(error as Error).message}`);
+      }
     }
 
     if (yqEnabled) {
-      await installYQ(yqVersion, debugEnabled);
+      try {
+        await installYQ(yqVersion, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ YQ installation failed: ${(error as Error).message}`);
+      }
     }
 
     if (argocdEnabled) {
-      await installArgoCD(argocdVersion, debugEnabled);
+      try {
+        await installArgoCD(argocdVersion, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ ArgoCD installation failed: ${(error as Error).message}`);
+      }
     }
 
     if (argoEnabled) {
-      await installArgoCLI(argoVersion, debugEnabled);
+      try {
+        await installArgoCLI(argoVersion, debugEnabled);
+      } catch (error) {
+        errorMessages.push(`❌ Argo CLI installation failed: ${(error as Error).message}`);
+      }
     }
 
     if (command) {
-      core.info(`Executing command: ${command}`);
-      await execCommand('sh', ['-c', command], debugEnabled);
-      core.addPath(`${process.env.HOME}/bin`);
+      try {
+        core.info(`Executing command: ${command}`);
+        await execCommand('sh', ['-c', command], debugEnabled);
+        core.addPath(`${process.env.HOME}/bin`);
+      } catch (error) {
+        errorMessages.push(`❌ Custom command execution failed: ${(error as Error).message}`);
+      }
+    }
+
+    if (errorMessages.length > 0) {
+      core.summary
+        .addHeading('⚠️ Installation Failures')
+        .addRaw(errorMessages.join('\n'))
+        .write();
+      core.setFailed('One or more tools failed to install. Check GitHub Summary for details.');
     }
 
   } catch (error) {
-    core.setFailed((error as Error).message);
+    core.setFailed(`Workflow execution failed: ${(error as Error).message}`);
   }
 }
 
