@@ -242,6 +242,7 @@ async function installArgoCD(version: string, debugEnabled: boolean): Promise<vo
 
 async function run(): Promise<void> {
   try {
+    const command = core.getInput('command');
     const debugEnabled = core.getInput('tools-debug-enabled') === 'true';
 
     const helmEnabled = core.getInput('helm-enabled') === 'true';
@@ -256,7 +257,6 @@ async function run(): Promise<void> {
     const argocdVersion = core.getInput('argocd-version');
     const argoVersion = core.getInput('argo-version');
     const kubeconfigBase64 = core.getInput('kubeconfig');
-    const command = core.getInput('command');
 
     if (kubeconfigBase64) {
       await handleKubeconfig(kubeconfigBase64, debugEnabled);
