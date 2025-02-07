@@ -1,0 +1,75 @@
+name: CI - Build, Test & Validate
+
+on:
+  push:
+    branches:
+      - main
+      - truemark/**
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Action
+        run: pnpm build
+
+      - name: Run TypeScript Linting
+        run: pnpm lint
+
+      - name: Run Unit Tests
+        run: pnpm test
+
+      - name: Package Action (NCC)
+        run: pnpm package
+
+  install-tools-test:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Kubernetes Tools
+        uses: ./
+        with:
+          tools-debug-enabled: 'true'
+          helm-enabled: 'true'
+          helm-version: '3.13.0'
+          kubectl-enabled: 'true'
+          kubectl-version: '1.27.0'
+          yq-enabled: 'true'
+          yq-version: 'latest'
+          argo-enabled: 'true'
+          argo-version: 'latest'
+          argocd-enabled: 'true'
+          argocd-version: 'latest'
+
+      - name: Verify Helm Installation
+        run: helm version --short
+
+      - name: Verify Kubectl Installation
+        run: kubectl version --client --short
+
+      - name: Verify YQ Installation
+        run: yq --version
+
+      - name: Verify Argo CLI Installation
+        run: argo version
+
+      - name: Verify ArgoCD CLI Installation
+        run: argocd version --client
