@@ -21,16 +21,10 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Restore pnpm Cache
-        uses: actions/cache@v3
+      - name: Set Up pnpm
+        uses: pnpm/action-setup@v2
         with:
-          path: ~/.pnpm-store
-          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}
+          version: 9.15.4
 
       - name: Install Dependencies
         run: pnpm install
