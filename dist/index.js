@@ -142,7 +142,15 @@ function installHelm(version, debugEnabled) {
         core.info(`🔍 Downloading Helm from: ${helmUrl}`);
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
-        yield installFromURL('helm', '/tmp/linux-amd64/helm', debugEnabled);
+        // Check if extracted binary exists
+        const helmBinaryPath = '/tmp/linux-amd64/helm';
+        yield execCommand('ls', ['-lah', '/tmp/linux-amd64'], debugEnabled); // Debugging
+        const helmExists = (yield exec.exec('test', ['-f', helmBinaryPath], { ignoreReturnCode: true })) === 0;
+        if (!helmExists) {
+            core.setFailed(`❌ Helm binary not found at expected path: ${helmBinaryPath}`);
+            return;
+        }
+        yield installFromURL('helm', helmBinaryPath, debugEnabled);
     });
 }
 // Install Kubectl with stable version caching
@@ -185,6 +193,17 @@ function run() {
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
+            const kubeconfigBase64 = core.getInput('kubeconfig');
+            if (kubeconfigBase64) {
+                const kubeconfigPath = `${process.env.HOME}/.kube/config`;
+                yield execCommand('mkdir', ['-p', `${process.env.HOME}/.kube`], debugEnabled);
+                yield execCommand('echo', [`"${Buffer.from(kubeconfigBase64, 'base64').toString('utf-8')}"`, '>', kubeconfigPath], debugEnabled);
+                process.env.KUBECONFIG = kubeconfigPath;
+                core.info(`✅ KUBECONFIG set at ${kubeconfigPath}`);
+            }
+            else {
+                core.info(`⚠️ No KUBECONFIG provided. Kubectl may fail if authentication is required.`);
+            }
             // Parallel installation
             yield Promise.all([
                 helmEnabled ? installHelm(helmVersion, debugEnabled) : Promise.resolve(),

@@ -85,7 +85,17 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
 
   await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
-  await installFromURL('helm', '/tmp/linux-amd64/helm', debugEnabled);
+
+  // Check if extracted binary exists
+  const helmBinaryPath = '/tmp/linux-amd64/helm';
+  await execCommand('ls', ['-lah', '/tmp/linux-amd64'], debugEnabled); // Debugging
+  const helmExists = await exec.exec('test', ['-f', helmBinaryPath], { ignoreReturnCode: true }) === 0;
+  if (!helmExists) {
+    core.setFailed(`❌ Helm binary not found at expected path: ${helmBinaryPath}`);
+    return;
+  }
+
+  await installFromURL('helm', helmBinaryPath, debugEnabled);
 }
 
 // Install Kubectl with stable version caching
@@ -128,6 +138,17 @@ async function run(): Promise<void> {
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
     const argocdVersion = core.getInput('argocd-version');
+
+    const kubeconfigBase64 = core.getInput('kubeconfig');
+    if (kubeconfigBase64) {
+      const kubeconfigPath = `${process.env.HOME}/.kube/config`;
+      await execCommand('mkdir', ['-p', `${process.env.HOME}/.kube`], debugEnabled);
+      await execCommand('echo', [`"${Buffer.from(kubeconfigBase64, 'base64').toString('utf-8')}"`, '>', kubeconfigPath], debugEnabled);
+      process.env.KUBECONFIG = kubeconfigPath;
+      core.info(`✅ KUBECONFIG set at ${kubeconfigPath}`);
+    } else {
+      core.info(`⚠️ No KUBECONFIG provided. Kubectl may fail if authentication is required.`);
+    }
 
     // Parallel installation
     await Promise.all([
