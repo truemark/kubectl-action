@@ -2,11 +2,6 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import axios from 'axios';
 
-// Utility function for logging
-function log(message: string, debugEnabled: boolean): void {
-  if (debugEnabled) core.info(message);
-}
-
 async function installCurl(debugEnabled: boolean): Promise<void> {
   try {
     const os = process.platform;
@@ -86,8 +81,9 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
 
-  // Correct binary path
   const helmBinaryPath = '/tmp/linux-amd64/helm';
+  const systemBinPath = '/usr/local/bin/helm';
+  const userBinPath = `${process.env.HOME}/bin/helm`;
 
   // Ensure Helm binary exists
   const helmExists = await exec.exec('test', ['-f', helmBinaryPath], { ignoreReturnCode: true }) === 0;
@@ -96,10 +92,22 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
     return;
   }
 
-  // Move Helm binary to a valid path
-  await execCommand('mv', [helmBinaryPath, '/usr/local/bin/helm'], debugEnabled);
-  await execCommand('chmod', ['+x', '/usr/local/bin/helm'], debugEnabled);
-  core.info('✅ Helm installation successful.');
+  try {
+    // Try installing in /usr/local/bin (GitHub-hosted runners)
+    await execCommand('mv', [helmBinaryPath, systemBinPath], debugEnabled);
+    await execCommand('chmod', ['+x', systemBinPath], debugEnabled);
+    core.info(`✅ Helm installed at ${systemBinPath}`);
+  } catch (error) {
+    core.warning(`⚠️ Insufficient permissions for /usr/local/bin. Installing in ${userBinPath} instead.`);
+
+    // Ensure user bin directory exists
+    const binDir = `${process.env.HOME}/bin`;
+    await execCommand('mkdir', ['-p', binDir], debugEnabled);
+    await execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
+    await execCommand('chmod', ['+x', userBinPath], debugEnabled);
+    core.addPath(binDir);
+    core.info(`✅ Helm installed at ${userBinPath}`);
+  }
 }
 
 // Install Kubectl with stable version caching

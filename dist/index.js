@@ -55,11 +55,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
-// Utility function for logging
-function log(message, debugEnabled) {
-    if (debugEnabled)
-        core.info(message);
-}
 function installCurl(debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -142,18 +137,31 @@ function installHelm(version, debugEnabled) {
         core.info(`🔍 Downloading Helm from: ${helmUrl}`);
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
-        // Correct binary path
         const helmBinaryPath = '/tmp/linux-amd64/helm';
+        const systemBinPath = '/usr/local/bin/helm';
+        const userBinPath = `${process.env.HOME}/bin/helm`;
         // Ensure Helm binary exists
         const helmExists = (yield exec.exec('test', ['-f', helmBinaryPath], { ignoreReturnCode: true })) === 0;
         if (!helmExists) {
             core.setFailed(`❌ Helm binary not found at expected path: ${helmBinaryPath}`);
             return;
         }
-        // Move Helm binary to a valid path
-        yield execCommand('mv', [helmBinaryPath, '/usr/local/bin/helm'], debugEnabled);
-        yield execCommand('chmod', ['+x', '/usr/local/bin/helm'], debugEnabled);
-        core.info('✅ Helm installation successful.');
+        try {
+            // Try installing in /usr/local/bin (GitHub-hosted runners)
+            yield execCommand('mv', [helmBinaryPath, systemBinPath], debugEnabled);
+            yield execCommand('chmod', ['+x', systemBinPath], debugEnabled);
+            core.info(`✅ Helm installed at ${systemBinPath}`);
+        }
+        catch (error) {
+            core.warning(`⚠️ Insufficient permissions for /usr/local/bin. Installing in ${userBinPath} instead.`);
+            // Ensure user bin directory exists
+            const binDir = `${process.env.HOME}/bin`;
+            yield execCommand('mkdir', ['-p', binDir], debugEnabled);
+            yield execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
+            yield execCommand('chmod', ['+x', userBinPath], debugEnabled);
+            core.addPath(binDir);
+            core.info(`✅ Helm installed at ${userBinPath}`);
+        }
     });
 }
 // Install Kubectl with stable version caching
