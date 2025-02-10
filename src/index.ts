@@ -133,10 +133,40 @@ async function installYQ(version: string, debugEnabled: boolean): Promise<void> 
   core.info(`✅ Installed yq at ${destination}`);
 }
 
+async function getLatestArgoCDVersion(): Promise<string> {
+  try {
+    const response = await axios.get('https://api.github.com/repos/argoproj/argo-cd/releases/latest');
+    return response.data.tag_name.replace(/^v/, ''); // Remove "v" prefix if present
+  } catch (error) {
+    core.warning(`⚠️ Failed to fetch latest ArgoCD version, falling back to default.`);
+    return '2.9.3'; // Use a stable fallback version
+  }
+}
+
 // Install ArgoCD CLI with validation
 async function installArgoCD(version: string, debugEnabled: boolean): Promise<void> {
-  const argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
-  await installFromURL('argocd', argocdUrl, debugEnabled);
+  const resolvedVersion = version === 'latest' ? await getLatestArgoCDVersion() : version;
+  const argoUrl = `https://github.com/argoproj/argo-cd/releases/download/v${resolvedVersion}/argocd-linux-amd64`;
+  const binPath = `${process.env.HOME}/bin`;
+  const destination = `${binPath}/argocd`;
+
+  core.info(`🔍 Downloading ArgoCD from: ${argoUrl}`);
+
+  await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  await execCommand('curl', ['-sSL', '-o', destination, argoUrl], debugEnabled);
+
+  // Validate the file is a binary
+  const fileCheck = await exec.exec('file', [destination], { silent: true, ignoreReturnCode: true });
+
+  if (fileCheck !== 0) {
+    core.setFailed(`❌ Failed to download a valid ArgoCD binary from ${argoUrl}`);
+    return;
+  }
+
+  await execCommand('chmod', ['+x', destination], debugEnabled);
+  core.addPath(binPath);
+
+  core.info(`✅ Installed ArgoCD at ${destination}`);
 }
 
 // Run the action
