@@ -96,9 +96,21 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
   await installFromURL('kubectl', kubectlUrl, debugEnabled);
 }
 
+async function getLatestYQVersion(): Promise<string> {
+  try {
+    const response = await axios.get('https://api.github.com/repos/mikefarah/yq/releases/latest');
+    return response.data.tag_name.replace(/^v/, '');
+  } catch (error) {
+    core.warning(`⚠️ Failed to fetch latest YQ version, falling back to default.`);
+    return '4.30.6';
+  }
+}
+
 // Install YQ with validation
+
 async function installYQ(version: string, debugEnabled: boolean): Promise<void> {
-  const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
+  const resolvedVersion = version === 'latest' ? await getLatestYQVersion() : version;
+  const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${resolvedVersion}/yq_linux_amd64`;
   const binPath = `${process.env.HOME}/bin`;
   const destination = `${binPath}/yq`;
 
@@ -108,8 +120,12 @@ async function installYQ(version: string, debugEnabled: boolean): Promise<void> 
   await execCommand('curl', ['-sSL', '-o', destination, yqUrl], debugEnabled);
 
   // Validate download success
-  await execCommand('ls', ['-lah', destination], debugEnabled);
-  await execCommand('file', [destination], debugEnabled);
+  const fileCheck = await exec.exec('file', [destination], { silent: true, ignoreReturnCode: true });
+
+  if (fileCheck !== 0) {
+    core.setFailed(`❌ Failed to download a valid YQ binary from ${yqUrl}`);
+    return;
+  }
 
   await execCommand('chmod', ['+x', destination], debugEnabled);
   core.addPath(binPath);

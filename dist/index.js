@@ -145,18 +145,34 @@ function installKubectl(version, debugEnabled) {
         yield installFromURL('kubectl', kubectlUrl, debugEnabled);
     });
 }
+function getLatestYQVersion() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const response = yield axios_1.default.get('https://api.github.com/repos/mikefarah/yq/releases/latest');
+            return response.data.tag_name.replace(/^v/, '');
+        }
+        catch (error) {
+            core.warning(`⚠️ Failed to fetch latest YQ version, falling back to default.`);
+            return '4.30.6';
+        }
+    });
+}
 // Install YQ with validation
 function installYQ(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
+        const resolvedVersion = version === 'latest' ? yield getLatestYQVersion() : version;
+        const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${resolvedVersion}/yq_linux_amd64`;
         const binPath = `${process.env.HOME}/bin`;
         const destination = `${binPath}/yq`;
         core.info(`🔍 Downloading YQ from: ${yqUrl}`);
         yield execCommand('mkdir', ['-p', binPath], debugEnabled);
         yield execCommand('curl', ['-sSL', '-o', destination, yqUrl], debugEnabled);
         // Validate download success
-        yield execCommand('ls', ['-lah', destination], debugEnabled);
-        yield execCommand('file', [destination], debugEnabled);
+        const fileCheck = yield exec.exec('file', [destination], { silent: true, ignoreReturnCode: true });
+        if (fileCheck !== 0) {
+            core.setFailed(`❌ Failed to download a valid YQ binary from ${yqUrl}`);
+            return;
+        }
         yield execCommand('chmod', ['+x', destination], debugEnabled);
         core.addPath(binPath);
         core.info(`✅ Installed yq at ${destination}`);
