@@ -86,16 +86,20 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
 
-  // Check if extracted binary exists
+  // Correct binary path
   const helmBinaryPath = '/tmp/linux-amd64/helm';
-  await execCommand('ls', ['-lah', '/tmp/linux-amd64'], debugEnabled); // Debugging
+
+  // Ensure Helm binary exists
   const helmExists = await exec.exec('test', ['-f', helmBinaryPath], { ignoreReturnCode: true }) === 0;
   if (!helmExists) {
     core.setFailed(`❌ Helm binary not found at expected path: ${helmBinaryPath}`);
     return;
   }
 
-  await installFromURL('helm', helmBinaryPath, debugEnabled);
+  // Move Helm binary to a valid path
+  await execCommand('mv', [helmBinaryPath, '/usr/local/bin/helm'], debugEnabled);
+  await execCommand('chmod', ['+x', '/usr/local/bin/helm'], debugEnabled);
+  core.info('✅ Helm installation successful.');
 }
 
 // Install Kubectl with stable version caching
