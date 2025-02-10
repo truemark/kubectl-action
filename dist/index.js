@@ -60,6 +60,34 @@ function log(message, debugEnabled) {
     if (debugEnabled)
         core.info(message);
 }
+function installCurl(debugEnabled) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const os = process.platform;
+            if (os === 'linux') {
+                // Detect Amazon Linux
+                const amazonLinux = yield exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
+                if (amazonLinux === 0) {
+                    yield execCommand('sudo', ['dnf', 'install', '-y', 'curl'], debugEnabled);
+                }
+                else {
+                    yield execCommand('sudo', ['apt-get', 'update'], debugEnabled);
+                    yield execCommand('sudo', ['apt-get', 'install', '-y', 'curl'], debugEnabled);
+                }
+            }
+            else if (os === 'darwin') {
+                yield execCommand('brew', ['install', 'curl'], debugEnabled);
+            }
+            else {
+                core.warning('⚠️ Unsupported OS: Manual installation of cURL may be required.');
+            }
+            core.info('✅ cURL installed successfully.');
+        }
+        catch (error) {
+            core.setFailed(`❌ Failed to install cURL: ${error.message}`);
+        }
+    });
+}
 // Execute a command and handle errors
 function execCommand(command, args, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -68,14 +96,23 @@ function execCommand(command, args, debugEnabled) {
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-            core.setFailed(error.message);
-            throw error;
+            // Check if the error is due to missing curl
+            if (command === 'curl') {
+                core.warning('⚠️ cURL not found. Attempting to install it...');
+                yield installCurl(debugEnabled);
+                yield exec.exec(command, args, { silent: !debugEnabled }); // Retry command
+            }
+            else {
+                core.setFailed(error.message);
+                throw error;
+            }
         }
     });
 }
 // Generic function to download and install CLI tools
 function installFromURL(toolName, url, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        yield execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
         const binPath = `${process.env.HOME}/bin`;
         const destination = `${binPath}/${toolName}`;
         yield execCommand('mkdir', ['-p', binPath], debugEnabled);
@@ -83,7 +120,7 @@ function installFromURL(toolName, url, debugEnabled) {
         yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
         yield execCommand('chmod', ['+x', destination], debugEnabled);
         core.addPath(binPath);
-        log(`✅ Installed ${toolName} at ${destination}`, debugEnabled);
+        core.info(`✅ Installed ${toolName} at ${destination}`);
     });
 }
 // Install Helm

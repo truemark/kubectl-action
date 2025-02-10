@@ -7,19 +7,54 @@ function log(message: string, debugEnabled: boolean): void {
   if (debugEnabled) core.info(message);
 }
 
+async function installCurl(debugEnabled: boolean): Promise<void> {
+  try {
+    const os = process.platform;
+
+    if (os === 'linux') {
+      // Detect Amazon Linux
+      const amazonLinux = await exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
+      if (amazonLinux === 0) {
+        await execCommand('sudo', ['dnf', 'install', '-y', 'curl'], debugEnabled);
+      } else {
+        await execCommand('sudo', ['apt-get', 'update'], debugEnabled);
+        await execCommand('sudo', ['apt-get', 'install', '-y', 'curl'], debugEnabled);
+      }
+    } else if (os === 'darwin') {
+      await execCommand('brew', ['install', 'curl'], debugEnabled);
+    } else {
+      core.warning('⚠️ Unsupported OS: Manual installation of cURL may be required.');
+    }
+
+    core.info('✅ cURL installed successfully.');
+  } catch (error) {
+    core.setFailed(`❌ Failed to install cURL: ${(error as Error).message}`);
+  }
+}
+
 // Execute a command and handle errors
 async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<void> {
   try {
     await exec.exec(command, args, { silent: !debugEnabled });
   } catch (error) {
     core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-    core.setFailed((error as Error).message);
-    throw error;
+
+    // Check if the error is due to missing curl
+    if (command === 'curl') {
+      core.warning('⚠️ cURL not found. Attempting to install it...');
+      await installCurl(debugEnabled);
+      await exec.exec(command, args, { silent: !debugEnabled }); // Retry command
+    } else {
+      core.setFailed((error as Error).message);
+      throw error;
+    }
   }
 }
 
 // Generic function to download and install CLI tools
 async function installFromURL(toolName: string, url: string, debugEnabled: boolean): Promise<void> {
+  await execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
+
   const binPath = `${process.env.HOME}/bin`;
   const destination = `${binPath}/${toolName}`;
 
@@ -29,7 +64,7 @@ async function installFromURL(toolName: string, url: string, debugEnabled: boole
   await execCommand('chmod', ['+x', destination], debugEnabled);
   core.addPath(binPath);
 
-  log(`✅ Installed ${toolName} at ${destination}`, debugEnabled);
+  core.info(`✅ Installed ${toolName} at ${destination}`);
 }
 
 // Install Helm
