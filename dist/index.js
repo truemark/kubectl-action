@@ -55,26 +55,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
-const fs = __importStar(__nccwpck_require__(9896));
-const path = __importStar(__nccwpck_require__(6928));
-// Utility function to control debug logs
+// Utility function for logging
 function log(message, debugEnabled) {
-    if (debugEnabled) {
+    if (debugEnabled)
         core.info(message);
-    }
 }
-// Execute a command and handle errors properly
-function execCommand(command_1) {
-    return __awaiter(this, arguments, void 0, function* (command, args = [], debugEnabled) {
-        const options = {
-            silent: false,
-            listeners: {
-                stdout: (data) => debugEnabled && core.info(data.toString()),
-                stderr: (data) => core.error(data.toString()),
-            },
-        };
+// Execute a command and handle errors
+function execCommand(command, args, debugEnabled) {
+    return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield exec.exec(command, args, options);
+            yield exec.exec(command, args, { silent: !debugEnabled });
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
@@ -83,118 +73,54 @@ function execCommand(command_1) {
         }
     });
 }
-// Install a tool and place it in ~/bin
-function installTool(toolName, binaryPath, debugEnabled) {
+// Generic function to download and install CLI tools
+function installFromURL(toolName, url, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         const binPath = `${process.env.HOME}/bin`;
-        const destinationPath = `${binPath}/${toolName}`;
-        try {
-            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-            yield execCommand('mv', [binaryPath, destinationPath], debugEnabled);
-            yield execCommand('chmod', ['+x', destinationPath], debugEnabled);
-            core.addPath(binPath);
-            core.info(`✅ ${toolName} installed successfully at ${destinationPath}`);
-        }
-        catch (error) {
-            core.setFailed(`❌ Failed to install ${toolName}: ${error.message}`);
-        }
-    });
-}
-// Check if a tool is installed
-function isToolInstalled(command, versionFlag, expectedVersion, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let output = '';
-            const options = {
-                silent: !debugEnabled,
-                listeners: {
-                    stdout: (data) => (output += data.toString()),
-                },
-            };
-            yield exec.exec(command, [versionFlag], options);
-            return output.includes(expectedVersion);
-        }
-        catch (_a) {
-            return false;
-        }
-    });
-}
-// Handle Base64-encoded Kubeconfig
-function handleKubeconfig(kubeconfigBase64, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!kubeconfigBase64.trim()) {
-            core.info('⚠️ No KUBECONFIG provided. Skipping configuration.');
-            return;
-        }
-        try {
-            const kubeconfig = Buffer.from(kubeconfigBase64, 'base64').toString('utf-8');
-            const kubeconfigPath = path.join('/tmp', 'kubeconfig');
-            fs.writeFileSync(kubeconfigPath, kubeconfig, { encoding: 'utf-8' });
-            fs.chmodSync(kubeconfigPath, 0o600);
-            process.env.KUBECONFIG = kubeconfigPath;
-            log(`✅ KUBECONFIG set to ${kubeconfigPath}`, debugEnabled);
-        }
-        catch (error) {
-            core.setFailed(`❌ Failed to set KUBECONFIG: ${error.message}`);
-        }
+        const destination = `${binPath}/${toolName}`;
+        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+        yield execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+        yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
+        yield execCommand('chmod', ['+x', destination], debugEnabled);
+        core.addPath(binPath);
+        log(`✅ Installed ${toolName} at ${destination}`, debugEnabled);
     });
 }
 // Install Helm
 function installHelm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (yield isToolInstalled('helm', 'version --short', `v${version}`, debugEnabled)) {
-            core.info(`✅ Helm ${version} is already installed.`);
-            return;
-        }
-        core.info(`Installing Helm ${version}...`);
         const helmUrl = version === 'stable'
             ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
             : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
-        yield installTool('helm', '/tmp/linux-amd64/helm', debugEnabled);
+        yield installFromURL('helm', '/tmp/linux-amd64/helm', debugEnabled);
     });
 }
-// Install Kubectl
+// Install Kubectl with stable version caching
+let cachedKubectlVersion = null;
 function installKubectl(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (yield isToolInstalled('kubectl', 'version --client --short', `v${version}`, debugEnabled)) {
-            core.info(`✅ Kubectl ${version} is already installed.`);
-            return;
+        if (version === 'stable' && !cachedKubectlVersion) {
+            cachedKubectlVersion = (yield axios_1.default.get('https://dl.k8s.io/release/stable.txt')).data.trim();
         }
-        core.info(`Installing Kubectl ${version}...`);
-        const stableVersionUrl = 'https://dl.k8s.io/release/stable.txt';
-        const kubectlUrl = version === 'stable'
-            ? `https://dl.k8s.io/release/${(yield axios_1.default.get(stableVersionUrl)).data.trim()}/bin/linux/amd64/kubectl`
-            : `https://dl.k8s.io/release/v${version}/bin/linux/amd64/kubectl`;
-        yield execCommand('curl', ['-sSL', '-o', '/tmp/kubectl', kubectlUrl], debugEnabled);
-        yield installTool('kubectl', '/tmp/kubectl', debugEnabled);
+        const kubectlVersion = version === 'stable' ? cachedKubectlVersion : `v${version}`;
+        const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
+        yield installFromURL('kubectl', kubectlUrl, debugEnabled);
     });
 }
 // Install YQ
 function installYQ(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (yield isToolInstalled('yq', '--version', `version ${version}`, debugEnabled)) {
-            core.info(`✅ YQ ${version} is already installed.`);
-            return;
-        }
-        core.info(`Installing YQ ${version}...`);
         const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
-        yield execCommand('curl', ['-sSL', '-o', '/tmp/yq', yqUrl], debugEnabled);
-        yield installTool('yq', '/tmp/yq', debugEnabled);
+        yield installFromURL('yq', yqUrl, debugEnabled);
     });
 }
 // Install ArgoCD CLI
 function installArgoCD(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (yield isToolInstalled('argocd', 'version --client', `v${version}`, debugEnabled)) {
-            core.info(`✅ ArgoCD ${version} is already installed.`);
-            return;
-        }
-        core.info(`Installing ArgoCD ${version}...`);
         const argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
-        yield execCommand('curl', ['-sSL', '-o', '/tmp/argocd', argocdUrl], debugEnabled);
-        yield installTool('argocd', '/tmp/argocd', debugEnabled);
+        yield installFromURL('argocd', argocdUrl, debugEnabled);
     });
 }
 // Run the action
@@ -211,17 +137,19 @@ function run() {
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
-            const kubeconfigBase64 = core.getInput('kubeconfig');
-            if (kubeconfigBase64)
-                yield handleKubeconfig(kubeconfigBase64, debugEnabled);
-            if (helmEnabled)
-                yield installHelm(helmVersion, debugEnabled);
-            if (kubectlEnabled)
-                yield installKubectl(kubectlVersion, debugEnabled);
-            if (yqEnabled)
-                yield installYQ(yqVersion, debugEnabled);
-            if (argocdEnabled)
-                yield installArgoCD(argocdVersion, debugEnabled);
+            // Parallel installation
+            yield Promise.all([
+                helmEnabled ? installHelm(helmVersion, debugEnabled) : Promise.resolve(),
+                kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
+                yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
+                argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve()
+            ]);
+            // ✅ Execute user-defined command if provided
+            const userCommand = core.getInput('command');
+            if (userCommand) {
+                core.info(`🚀 Executing user command: ${userCommand}`);
+                yield execCommand('bash', ['-c', userCommand], debugEnabled);
+            }
         }
         catch (error) {
             core.setFailed(`❌ Workflow failed: ${error.message}`);
