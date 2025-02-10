@@ -135,6 +135,8 @@ function installHelm(version, debugEnabled) {
             ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
             : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
         core.info(`🔍 Downloading Helm from: ${helmUrl}`);
+        core.exportVariable('PATH', `${process.env.HOME}/bin:${process.env.PATH}`);
+        core.info('✅ Updated PATH to include user bin directory');
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         const helmBinaryPath = '/tmp/linux-amd64/helm';
@@ -205,15 +207,15 @@ function run() {
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
-            if (kubeconfigBase64) {
+            if (!kubeconfigBase64) {
+                core.warning('⚠️ No KUBECONFIG provided. Kubectl may fail.');
+            }
+            else {
                 const kubeconfigPath = `${process.env.HOME}/.kube/config`;
                 yield execCommand('mkdir', ['-p', `${process.env.HOME}/.kube`], debugEnabled);
                 yield execCommand('echo', [`"${Buffer.from(kubeconfigBase64, 'base64').toString('utf-8')}"`, '>', kubeconfigPath], debugEnabled);
                 process.env.KUBECONFIG = kubeconfigPath;
                 core.info(`✅ KUBECONFIG set at ${kubeconfigPath}`);
-            }
-            else {
-                core.info(`⚠️ No KUBECONFIG provided. Kubectl may fail if authentication is required.`);
             }
             // Parallel installation
             yield Promise.all([

@@ -1,5 +1,5 @@
 name: 'Install Kubernetes Tools'
-description: 'A GitHub Action to install Helm, Kubectl and YQ.'
+description: 'A GitHub Action to install Helm, Kubectl, YQ, ArgoCD, and Argo CLIs.'
 inputs:
   helm-enabled:
     description: 'Enable installation of Helm'
