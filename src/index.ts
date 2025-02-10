@@ -26,35 +26,17 @@ async function installCurl(debugEnabled: boolean): Promise<void> {
   }
 }
 
-async function verifyCurl(debugEnabled: boolean): Promise<void> {
-  try {
-    await execCommand('curl', ['--version'], debugEnabled);
-    core.info('✅ cURL is properly installed and functional.');
-  } catch (error) {
-    core.setFailed('❌ cURL installation failed or is not functional.');
-  }
-}
-
-// Execute a command and handle errors
 async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<void> {
   try {
     await exec.exec(command, args, { silent: !debugEnabled });
   } catch (error) {
     core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-
-    if (command === 'curl') {
-      core.warning('⚠️ cURL failed. Reinstalling and verifying...');
-      await installCurl(debugEnabled);
-      await verifyCurl(debugEnabled);
-      await exec.exec(command, args, { silent: !debugEnabled }); // Retry command
-    } else {
-      core.setFailed((error as Error).message);
-      throw error;
-    }
+    core.setFailed((error as Error).message);
+    throw error;
   }
 }
 
-// Generic function to download and install CLI tools
+// Generic function to download and install CLI tools with validation
 async function installFromURL(toolName: string, url: string, debugEnabled: boolean): Promise<void> {
   await execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
 
@@ -63,6 +45,11 @@ async function installFromURL(toolName: string, url: string, debugEnabled: boole
 
   await execCommand('mkdir', ['-p', binPath], debugEnabled);
   await execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+
+  // Validate download success
+  await execCommand('ls', ['-lah', `/tmp/${toolName}`], debugEnabled);
+  await execCommand('file', [`/tmp/${toolName}`], debugEnabled);
+
   await execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
   await execCommand('chmod', ['+x', destination], debugEnabled);
   core.addPath(binPath);
@@ -70,7 +57,7 @@ async function installFromURL(toolName: string, url: string, debugEnabled: boole
   core.info(`✅ Installed ${toolName} at ${destination}`);
 }
 
-// Install Helm
+// Install Helm with validation
 async function installHelm(version: string, debugEnabled: boolean): Promise<void> {
   const helmUrl = version === 'stable'
     ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
@@ -85,6 +72,10 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   const helmBinaryPath = '/tmp/linux-amd64/helm';
   const userBinPath = `${binDir}/helm`;
 
+  // Validate extracted file
+  await execCommand('test', ['-f', helmBinaryPath], debugEnabled);
+  await execCommand('ls', ['-lah', helmBinaryPath], debugEnabled);
+
   await execCommand('mkdir', ['-p', binDir], debugEnabled);
   await execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
   await execCommand('chmod', ['+x', userBinPath], debugEnabled);
@@ -92,7 +83,7 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   core.info(`✅ Helm installed at ${userBinPath}`);
 }
 
-// Install Kubectl with stable version caching
+// Install Kubectl with stable version caching and validation
 let cachedKubectlVersion: string | null = null;
 async function installKubectl(version: string, debugEnabled: boolean): Promise<void> {
   if (version === 'stable' && !cachedKubectlVersion) {
@@ -105,13 +96,28 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
   await installFromURL('kubectl', kubectlUrl, debugEnabled);
 }
 
-// Install YQ
+// Install YQ with validation
 async function installYQ(version: string, debugEnabled: boolean): Promise<void> {
   const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
-  await installFromURL('yq', yqUrl, debugEnabled);
+  const binPath = `${process.env.HOME}/bin`;
+  const destination = `${binPath}/yq`;
+
+  core.info(`🔍 Downloading YQ from: ${yqUrl}`);
+
+  await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  await execCommand('curl', ['-sSL', '-o', destination, yqUrl], debugEnabled);
+
+  // Validate download success
+  await execCommand('ls', ['-lah', destination], debugEnabled);
+  await execCommand('file', [destination], debugEnabled);
+
+  await execCommand('chmod', ['+x', destination], debugEnabled);
+  core.addPath(binPath);
+
+  core.info(`✅ Installed yq at ${destination}`);
 }
 
-// Install ArgoCD CLI
+// Install ArgoCD CLI with validation
 async function installArgoCD(version: string, debugEnabled: boolean): Promise<void> {
   const argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
   await installFromURL('argocd', argocdUrl, debugEnabled);

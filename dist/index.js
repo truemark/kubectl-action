@@ -82,18 +82,6 @@ function installCurl(debugEnabled) {
         }
     });
 }
-function verifyCurl(debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            yield execCommand('curl', ['--version'], debugEnabled);
-            core.info('✅ cURL is properly installed and functional.');
-        }
-        catch (error) {
-            core.setFailed('❌ cURL installation failed or is not functional.');
-        }
-    });
-}
-// Execute a command and handle errors
 function execCommand(command, args, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -101,20 +89,12 @@ function execCommand(command, args, debugEnabled) {
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-            if (command === 'curl') {
-                core.warning('⚠️ cURL failed. Reinstalling and verifying...');
-                yield installCurl(debugEnabled);
-                yield verifyCurl(debugEnabled);
-                yield exec.exec(command, args, { silent: !debugEnabled }); // Retry command
-            }
-            else {
-                core.setFailed(error.message);
-                throw error;
-            }
+            core.setFailed(error.message);
+            throw error;
         }
     });
 }
-// Generic function to download and install CLI tools
+// Generic function to download and install CLI tools with validation
 function installFromURL(toolName, url, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         yield execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
@@ -122,13 +102,16 @@ function installFromURL(toolName, url, debugEnabled) {
         const destination = `${binPath}/${toolName}`;
         yield execCommand('mkdir', ['-p', binPath], debugEnabled);
         yield execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+        // Validate download success
+        yield execCommand('ls', ['-lah', `/tmp/${toolName}`], debugEnabled);
+        yield execCommand('file', [`/tmp/${toolName}`], debugEnabled);
         yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
         yield execCommand('chmod', ['+x', destination], debugEnabled);
         core.addPath(binPath);
         core.info(`✅ Installed ${toolName} at ${destination}`);
     });
 }
-// Install Helm
+// Install Helm with validation
 function installHelm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         const helmUrl = version === 'stable'
@@ -140,6 +123,9 @@ function installHelm(version, debugEnabled) {
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         const helmBinaryPath = '/tmp/linux-amd64/helm';
         const userBinPath = `${binDir}/helm`;
+        // Validate extracted file
+        yield execCommand('test', ['-f', helmBinaryPath], debugEnabled);
+        yield execCommand('ls', ['-lah', helmBinaryPath], debugEnabled);
         yield execCommand('mkdir', ['-p', binDir], debugEnabled);
         yield execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
         yield execCommand('chmod', ['+x', userBinPath], debugEnabled);
@@ -147,7 +133,7 @@ function installHelm(version, debugEnabled) {
         core.info(`✅ Helm installed at ${userBinPath}`);
     });
 }
-// Install Kubectl with stable version caching
+// Install Kubectl with stable version caching and validation
 let cachedKubectlVersion = null;
 function installKubectl(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -159,14 +145,24 @@ function installKubectl(version, debugEnabled) {
         yield installFromURL('kubectl', kubectlUrl, debugEnabled);
     });
 }
-// Install YQ
+// Install YQ with validation
 function installYQ(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         const yqUrl = `https://github.com/mikefarah/yq/releases/download/v${version}/yq_linux_amd64`;
-        yield installFromURL('yq', yqUrl, debugEnabled);
+        const binPath = `${process.env.HOME}/bin`;
+        const destination = `${binPath}/yq`;
+        core.info(`🔍 Downloading YQ from: ${yqUrl}`);
+        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+        yield execCommand('curl', ['-sSL', '-o', destination, yqUrl], debugEnabled);
+        // Validate download success
+        yield execCommand('ls', ['-lah', destination], debugEnabled);
+        yield execCommand('file', [destination], debugEnabled);
+        yield execCommand('chmod', ['+x', destination], debugEnabled);
+        core.addPath(binPath);
+        core.info(`✅ Installed yq at ${destination}`);
     });
 }
-// Install ArgoCD CLI
+// Install ArgoCD CLI with validation
 function installArgoCD(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         const argocdUrl = `https://github.com/argoproj/argo-cd/releases/download/v${version}/argocd-linux-amd64`;
