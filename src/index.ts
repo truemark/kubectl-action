@@ -12,13 +12,12 @@ async function installCurl(debugEnabled: boolean): Promise<void> {
     const os = process.platform;
 
     if (os === 'linux') {
-      // Detect Amazon Linux
       const amazonLinux = await exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
       if (amazonLinux === 0) {
-        await execCommand('sudo', ['dnf', 'install', '-y', 'curl'], debugEnabled);
+        await execCommand('sudo', ['dnf', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
       } else {
         await execCommand('sudo', ['apt-get', 'update'], debugEnabled);
-        await execCommand('sudo', ['apt-get', 'install', '-y', 'curl'], debugEnabled);
+        await execCommand('sudo', ['apt-get', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
       }
     } else if (os === 'darwin') {
       await execCommand('brew', ['install', 'curl'], debugEnabled);
@@ -32,6 +31,15 @@ async function installCurl(debugEnabled: boolean): Promise<void> {
   }
 }
 
+async function verifyCurl(debugEnabled: boolean): Promise<void> {
+  try {
+    await execCommand('curl', ['--version'], debugEnabled);
+    core.info('✅ cURL is properly installed and functional.');
+  } catch (error) {
+    core.setFailed('❌ cURL installation failed or is not functional.');
+  }
+}
+
 // Execute a command and handle errors
 async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<void> {
   try {
@@ -39,10 +47,10 @@ async function execCommand(command: string, args: string[], debugEnabled: boolea
   } catch (error) {
     core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
 
-    // Check if the error is due to missing curl
     if (command === 'curl') {
-      core.warning('⚠️ cURL not found. Attempting to install it...');
+      core.warning('⚠️ cURL failed. Reinstalling and verifying...');
       await installCurl(debugEnabled);
+      await verifyCurl(debugEnabled);
       await exec.exec(command, args, { silent: !debugEnabled }); // Retry command
     } else {
       core.setFailed((error as Error).message);
@@ -72,6 +80,8 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   const helmUrl = version === 'stable'
     ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
     : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
+
+  core.info(`🔍 Downloading Helm from: ${helmUrl}`);
 
   await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);

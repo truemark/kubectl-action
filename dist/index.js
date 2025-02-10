@@ -65,14 +65,13 @@ function installCurl(debugEnabled) {
         try {
             const os = process.platform;
             if (os === 'linux') {
-                // Detect Amazon Linux
                 const amazonLinux = yield exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
                 if (amazonLinux === 0) {
-                    yield execCommand('sudo', ['dnf', 'install', '-y', 'curl'], debugEnabled);
+                    yield execCommand('sudo', ['dnf', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
                 }
                 else {
                     yield execCommand('sudo', ['apt-get', 'update'], debugEnabled);
-                    yield execCommand('sudo', ['apt-get', 'install', '-y', 'curl'], debugEnabled);
+                    yield execCommand('sudo', ['apt-get', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
                 }
             }
             else if (os === 'darwin') {
@@ -88,6 +87,17 @@ function installCurl(debugEnabled) {
         }
     });
 }
+function verifyCurl(debugEnabled) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield execCommand('curl', ['--version'], debugEnabled);
+            core.info('✅ cURL is properly installed and functional.');
+        }
+        catch (error) {
+            core.setFailed('❌ cURL installation failed or is not functional.');
+        }
+    });
+}
 // Execute a command and handle errors
 function execCommand(command, args, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -96,10 +106,10 @@ function execCommand(command, args, debugEnabled) {
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-            // Check if the error is due to missing curl
             if (command === 'curl') {
-                core.warning('⚠️ cURL not found. Attempting to install it...');
+                core.warning('⚠️ cURL failed. Reinstalling and verifying...');
                 yield installCurl(debugEnabled);
+                yield verifyCurl(debugEnabled);
                 yield exec.exec(command, args, { silent: !debugEnabled }); // Retry command
             }
             else {
@@ -129,6 +139,7 @@ function installHelm(version, debugEnabled) {
         const helmUrl = version === 'stable'
             ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
             : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
+        core.info(`🔍 Downloading Helm from: ${helmUrl}`);
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         yield installFromURL('helm', '/tmp/linux-amd64/helm', debugEnabled);
