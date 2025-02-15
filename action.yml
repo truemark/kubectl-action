@@ -16,7 +16,7 @@ inputs:
   helm-version:
     description: 'The version of Helm to install'
     required: false
-    default: 'stable'
+    default: 'v3.17.1'
   kubectl-version:
     description: 'The version of Kubectl to install'
     required: false
