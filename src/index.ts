@@ -2,28 +2,26 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import axios from 'axios';
 
-async function installCurl(debugEnabled: boolean): Promise<void> {
-  try {
-    const os = process.platform;
+async function installTool(toolName: string, url: string, debugEnabled: boolean): Promise<void> {
+  const binPath = `${process.env.HOME}/bin`;
+  const destination = `${binPath}/${toolName}`;
 
-    if (os === 'linux') {
-      const amazonLinux = await exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
-      if (amazonLinux === 0) {
-        await execCommand('sudo', ['dnf', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
-      } else {
-        await execCommand('sudo', ['apt-get', 'update'], debugEnabled);
-        await execCommand('sudo', ['apt-get', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
-      }
-    } else if (os === 'darwin') {
-      await execCommand('brew', ['install', 'curl'], debugEnabled);
-    } else {
-      core.warning('⚠️ Unsupported OS: Manual installation of cURL may be required.');
-    }
+  core.info(`🔍 Downloading ${toolName} from: ${url}`);
 
-    core.info('✅ cURL installed successfully.');
-  } catch (error) {
-    core.setFailed(`❌ Failed to install cURL: ${(error as Error).message}`);
+  await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  await execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+
+  // Validate Download
+  const fileCheck = await exec.exec('file', [`/tmp/${toolName}`], { silent: true, ignoreReturnCode: true });
+  if (fileCheck !== 0) {
+    core.setFailed(`❌ Failed to download a valid ${toolName} binary from ${url}`);
+    return;
   }
+
+  await execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
+  await execCommand('chmod', ['+x', destination], debugEnabled);
+  core.addPath(binPath);
+  core.info(`✅ Installed ${toolName} at ${destination}`);
 }
 
 async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<string> {
@@ -47,48 +45,40 @@ async function execCommand(command: string, args: string[], debugEnabled: boolea
 
 // Generic function to download and install CLI tools with validation
 async function installFromURL(toolName: string, url: string, debugEnabled: boolean): Promise<void> {
-  await execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
+  core.info(`🔍 Downloading ${toolName} from: ${url}`);
 
   const binPath = `${process.env.HOME}/bin`;
   const destination = `${binPath}/${toolName}`;
 
   await execCommand('mkdir', ['-p', binPath], debugEnabled);
-  await execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+  await execCommand('curl', ['-sSL', '-o', destination, url], debugEnabled);
 
-  // Validate download success
-  await execCommand('ls', ['-lah', `/tmp/${toolName}`], debugEnabled);
-  await execCommand('file', [`/tmp/${toolName}`], debugEnabled);
+  // Validate Download
+  const fileCheck = await exec.exec('file', [destination], { silent: true, ignoreReturnCode: true });
+  if (fileCheck !== 0) {
+    core.setFailed(`❌ Failed to download ${toolName} from ${url}`);
+    return;
+  }
 
-  await execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
   await execCommand('chmod', ['+x', destination], debugEnabled);
   core.addPath(binPath);
-
   core.info(`✅ Installed ${toolName} at ${destination}`);
 }
 
 // Install Helm with validation
 async function installHelm(version: string, debugEnabled: boolean): Promise<void> {
-  const helmUrl = version === 'stable'
-    ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
-    : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
-
+  const helmUrl = `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
   core.info(`🔍 Downloading Helm from: ${helmUrl}`);
-  const binDir = `${process.env.HOME}/bin`;
 
   await execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
 
   const helmBinaryPath = '/tmp/linux-amd64/helm';
-  const userBinPath = `${binDir}/helm`;
+  const userBinPath = `${process.env.HOME}/bin/helm`;
 
-  // Validate extracted file
-  await execCommand('test', ['-f', helmBinaryPath], debugEnabled);
-  await execCommand('ls', ['-lah', helmBinaryPath], debugEnabled);
-
-  await execCommand('mkdir', ['-p', binDir], debugEnabled);
   await execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
   await execCommand('chmod', ['+x', userBinPath], debugEnabled);
-  core.addPath(binDir);
+  core.addPath(`${process.env.HOME}/bin`);
   core.info(`✅ Helm installed at ${userBinPath}`);
 }
 
@@ -181,73 +171,43 @@ async function installArgoCD(version: string, debugEnabled: boolean): Promise<vo
 async function installNode(version: string, debugEnabled: boolean): Promise<void> {
   core.info(`🔍 Installing Node.js version: ${version}`);
 
+  const nodeUrl = `https://nodejs.org/dist/v${version}/node-v${version}-linux-x64.tar.xz`;
   const binPath = `${process.env.HOME}/bin`;
-  const nodeBinary = `${binPath}/node`;
 
-  try {
-    // Ensure bin directory exists
-    await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  await execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
 
-    // Fetch latest LTS version if needed
-    let nodeVersion = version;
-    if (nodeVersion === 'latest') {
-      nodeVersion = (await axios.get('https://nodejs.org/dist/index.json')).data
-        .find((v: { lts: boolean }) => v.lts).version.replace(/^v/, '');
-    }
-
-    const nodeUrl = `https://nodejs.org/dist/v${nodeVersion}/node-v${nodeVersion}-linux-x64.tar.xz`;
-
-    core.info(`📦 Downloading Node.js from: ${nodeUrl}`);
-
-    // Download Node.js archive
-    await execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
-
-    // Extract node binaries
-    await execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
-
-    // Move node binary to $HOME/bin
-    await execCommand('mv', [`/tmp/node-v${nodeVersion}-linux-x64/bin/node`, nodeBinary], debugEnabled);
-    await execCommand('chmod', ['+x', nodeBinary], debugEnabled);
-
-    // Add node to PATH
-    core.addPath(binPath);
-    process.env.PATH = `${binPath}:${process.env.PATH}`;
-
-    core.info(`✅ Installed Node.js at ${nodeBinary}`);
-
-  } catch (error) {
-    core.setFailed(`❌ Failed to install Node.js: ${(error as Error).message}`);
+  // Validate Download
+  const fileCheck = await exec.exec('file', ['/tmp/node.tar.xz'], { silent: true, ignoreReturnCode: true });
+  if (fileCheck !== 0) {
+    core.setFailed(`❌ Failed to download a valid Node.js archive from ${nodeUrl}`);
+    return;
   }
+
+  await execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
+  await execCommand('mv', [`/tmp/node-v${version}-linux-x64/bin/node`, `${binPath}/node`], debugEnabled);
+  await execCommand('chmod', ['+x', `${binPath}/node`], debugEnabled);
+
+  core.addPath(binPath);
+  core.info(`✅ Installed Node.js at ${binPath}/node`);
 }
 
 // Install pnpm with validation
 async function installPnpm(version: string, debugEnabled: boolean): Promise<void> {
   core.info(`🔍 Installing pnpm version: ${version}`);
 
-  // Define installation paths
   const binPath = `${process.env.HOME}/bin`;
-  const pnpmBinary = `${binPath}/pnpm`;
+  await execCommand('mkdir', ['-p', binPath], debugEnabled);
 
-  try {
-    // Ensure the bin directory exists
-    await execCommand('mkdir', ['-p', binPath], debugEnabled);
+  // Install a specific version of pnpm
+  const installScript = `curl -fsSL https://get.pnpm.io/install.sh | sh -s -- --version=${version}`;
+  await execCommand('sh', ['-c', installScript], debugEnabled);
 
-    // Download and install pnpm
-    await execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
+  await execCommand('mv', [`$HOME/.local/share/pnpm/pnpm`, `${binPath}/pnpm`], debugEnabled);
+  await execCommand('chmod', ['+x', `${binPath}/pnpm`], debugEnabled);
 
-    // Move pnpm to binPath
-    await execCommand('mv', ['/home/ec2-user/.local/share/pnpm/pnpm', pnpmBinary], debugEnabled);
-    await execCommand('chmod', ['+x', pnpmBinary], debugEnabled);
-
-    // Add to PATH dynamically
-    core.addPath(binPath);
-    process.env.PATH = `${binPath}:${process.env.PATH}`;
-
-    core.info(`✅ Installed pnpm at ${pnpmBinary}`);
-
-  } catch (error) {
-    core.setFailed(`❌ Failed to install pnpm: ${(error as Error).message}`);
-  }
+  core.addPath(binPath);
+  core.info(`✅ Installed pnpm at ${binPath}/pnpm`);
 }
 
 // Run the action
@@ -277,11 +237,11 @@ async function run(): Promise<void> {
 
     // Parallel installation
     await Promise.all([
-      helmEnabled ? installHelm(helmVersion, debugEnabled) : Promise.resolve(),
-      kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
-      yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
-      argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve(),
-      pnpmEnabled ? installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled)) : Promise.resolve()
+      installHelm(helmVersion, debugEnabled),
+      installKubectl(kubectlVersion, debugEnabled),
+      installYQ(yqVersion, debugEnabled),
+      installArgoCD(argocdVersion, debugEnabled),
+      installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled))
     ]);
 
     // ✅ Execute user-defined command if provided

@@ -55,31 +55,23 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
-function installCurl(debugEnabled) {
+function installTool(toolName, url, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const os = process.platform;
-            if (os === 'linux') {
-                const amazonLinux = yield exec.exec('grep', ['Amazon', '/etc/os-release'], { ignoreReturnCode: true });
-                if (amazonLinux === 0) {
-                    yield execCommand('sudo', ['dnf', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
-                }
-                else {
-                    yield execCommand('sudo', ['apt-get', 'update'], debugEnabled);
-                    yield execCommand('sudo', ['apt-get', 'install', '-y', 'curl', 'ca-certificates', 'tar'], debugEnabled);
-                }
-            }
-            else if (os === 'darwin') {
-                yield execCommand('brew', ['install', 'curl'], debugEnabled);
-            }
-            else {
-                core.warning('⚠️ Unsupported OS: Manual installation of cURL may be required.');
-            }
-            core.info('✅ cURL installed successfully.');
+        const binPath = `${process.env.HOME}/bin`;
+        const destination = `${binPath}/${toolName}`;
+        core.info(`🔍 Downloading ${toolName} from: ${url}`);
+        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+        yield execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
+        // Validate Download
+        const fileCheck = yield exec.exec('file', [`/tmp/${toolName}`], { silent: true, ignoreReturnCode: true });
+        if (fileCheck !== 0) {
+            core.setFailed(`❌ Failed to download a valid ${toolName} binary from ${url}`);
+            return;
         }
-        catch (error) {
-            core.setFailed(`❌ Failed to install cURL: ${error.message}`);
-        }
+        yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
+        yield execCommand('chmod', ['+x', destination], debugEnabled);
+        core.addPath(binPath);
+        core.info(`✅ Installed ${toolName} at ${destination}`);
     });
 }
 function execCommand(command, args, debugEnabled) {
@@ -106,15 +98,17 @@ function execCommand(command, args, debugEnabled) {
 // Generic function to download and install CLI tools with validation
 function installFromURL(toolName, url, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield execCommand('curl', ['--version'], debugEnabled); // Ensure cURL is available
+        core.info(`🔍 Downloading ${toolName} from: ${url}`);
         const binPath = `${process.env.HOME}/bin`;
         const destination = `${binPath}/${toolName}`;
         yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-        yield execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
-        // Validate download success
-        yield execCommand('ls', ['-lah', `/tmp/${toolName}`], debugEnabled);
-        yield execCommand('file', [`/tmp/${toolName}`], debugEnabled);
-        yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
+        yield execCommand('curl', ['-sSL', '-o', destination, url], debugEnabled);
+        // Validate Download
+        const fileCheck = yield exec.exec('file', [destination], { silent: true, ignoreReturnCode: true });
+        if (fileCheck !== 0) {
+            core.setFailed(`❌ Failed to download ${toolName} from ${url}`);
+            return;
+        }
         yield execCommand('chmod', ['+x', destination], debugEnabled);
         core.addPath(binPath);
         core.info(`✅ Installed ${toolName} at ${destination}`);
@@ -123,22 +117,15 @@ function installFromURL(toolName, url, debugEnabled) {
 // Install Helm with validation
 function installHelm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        const helmUrl = version === 'stable'
-            ? 'https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz'
-            : `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
+        const helmUrl = `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
         core.info(`🔍 Downloading Helm from: ${helmUrl}`);
-        const binDir = `${process.env.HOME}/bin`;
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         const helmBinaryPath = '/tmp/linux-amd64/helm';
-        const userBinPath = `${binDir}/helm`;
-        // Validate extracted file
-        yield execCommand('test', ['-f', helmBinaryPath], debugEnabled);
-        yield execCommand('ls', ['-lah', helmBinaryPath], debugEnabled);
-        yield execCommand('mkdir', ['-p', binDir], debugEnabled);
+        const userBinPath = `${process.env.HOME}/bin/helm`;
         yield execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
         yield execCommand('chmod', ['+x', userBinPath], debugEnabled);
-        core.addPath(binDir);
+        core.addPath(`${process.env.HOME}/bin`);
         core.info(`✅ Helm installed at ${userBinPath}`);
     });
 }
@@ -223,59 +210,36 @@ function installArgoCD(version, debugEnabled) {
 function installNode(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`🔍 Installing Node.js version: ${version}`);
+        const nodeUrl = `https://nodejs.org/dist/v${version}/node-v${version}-linux-x64.tar.xz`;
         const binPath = `${process.env.HOME}/bin`;
-        const nodeBinary = `${binPath}/node`;
-        try {
-            // Ensure bin directory exists
-            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-            // Fetch latest LTS version if needed
-            let nodeVersion = version;
-            if (nodeVersion === 'latest') {
-                nodeVersion = (yield axios_1.default.get('https://nodejs.org/dist/index.json')).data
-                    .find((v) => v.lts).version.replace(/^v/, '');
-            }
-            const nodeUrl = `https://nodejs.org/dist/v${nodeVersion}/node-v${nodeVersion}-linux-x64.tar.xz`;
-            core.info(`📦 Downloading Node.js from: ${nodeUrl}`);
-            // Download Node.js archive
-            yield execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
-            // Extract node binaries
-            yield execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
-            // Move node binary to $HOME/bin
-            yield execCommand('mv', [`/tmp/node-v${nodeVersion}-linux-x64/bin/node`, nodeBinary], debugEnabled);
-            yield execCommand('chmod', ['+x', nodeBinary], debugEnabled);
-            // Add node to PATH
-            core.addPath(binPath);
-            process.env.PATH = `${binPath}:${process.env.PATH}`;
-            core.info(`✅ Installed Node.js at ${nodeBinary}`);
+        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+        yield execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
+        // Validate Download
+        const fileCheck = yield exec.exec('file', ['/tmp/node.tar.xz'], { silent: true, ignoreReturnCode: true });
+        if (fileCheck !== 0) {
+            core.setFailed(`❌ Failed to download a valid Node.js archive from ${nodeUrl}`);
+            return;
         }
-        catch (error) {
-            core.setFailed(`❌ Failed to install Node.js: ${error.message}`);
-        }
+        yield execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
+        yield execCommand('mv', [`/tmp/node-v${version}-linux-x64/bin/node`, `${binPath}/node`], debugEnabled);
+        yield execCommand('chmod', ['+x', `${binPath}/node`], debugEnabled);
+        core.addPath(binPath);
+        core.info(`✅ Installed Node.js at ${binPath}/node`);
     });
 }
 // Install pnpm with validation
 function installPnpm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`🔍 Installing pnpm version: ${version}`);
-        // Define installation paths
         const binPath = `${process.env.HOME}/bin`;
-        const pnpmBinary = `${binPath}/pnpm`;
-        try {
-            // Ensure the bin directory exists
-            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-            // Download and install pnpm
-            yield execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
-            // Move pnpm to binPath
-            yield execCommand('mv', ['/home/ec2-user/.local/share/pnpm/pnpm', pnpmBinary], debugEnabled);
-            yield execCommand('chmod', ['+x', pnpmBinary], debugEnabled);
-            // Add to PATH dynamically
-            core.addPath(binPath);
-            process.env.PATH = `${binPath}:${process.env.PATH}`;
-            core.info(`✅ Installed pnpm at ${pnpmBinary}`);
-        }
-        catch (error) {
-            core.setFailed(`❌ Failed to install pnpm: ${error.message}`);
-        }
+        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+        // Install a specific version of pnpm
+        const installScript = `curl -fsSL https://get.pnpm.io/install.sh | sh -s -- --version=${version}`;
+        yield execCommand('sh', ['-c', installScript], debugEnabled);
+        yield execCommand('mv', [`$HOME/.local/share/pnpm/pnpm`, `${binPath}/pnpm`], debugEnabled);
+        yield execCommand('chmod', ['+x', `${binPath}/pnpm`], debugEnabled);
+        core.addPath(binPath);
+        core.info(`✅ Installed pnpm at ${binPath}/pnpm`);
     });
 }
 // Run the action
@@ -301,11 +265,11 @@ function run() {
             }
             // Parallel installation
             yield Promise.all([
-                helmEnabled ? installHelm(helmVersion, debugEnabled) : Promise.resolve(),
-                kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
-                yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
-                argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve(),
-                pnpmEnabled ? installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled)) : Promise.resolve()
+                installHelm(helmVersion, debugEnabled),
+                installKubectl(kubectlVersion, debugEnabled),
+                installYQ(yqVersion, debugEnabled),
+                installArgoCD(argocdVersion, debugEnabled),
+                installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled))
             ]);
             // ✅ Execute user-defined command if provided
             const userCommand = core.getInput('command');
