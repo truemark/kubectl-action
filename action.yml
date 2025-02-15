@@ -36,6 +36,14 @@ inputs:
     description: 'Version of ArgoCD CLI to install (use "latest" for the latest version)'
     required: false
     default: 'latest'
+  pnpm-enabled:
+    description: 'Enable installation of pnpm'
+    required: false
+    default: 'false'
+  pnpm-version:
+    description: 'The version of pnpm to install'
+    required: false
+    default: 'latest'
   command:
     description: "Command to execute after installing tools"
     required: false

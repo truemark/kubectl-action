@@ -169,6 +169,24 @@ async function installArgoCD(version: string, debugEnabled: boolean): Promise<vo
   core.info(`✅ Installed ArgoCD at ${destination}`);
 }
 
+// Install pnpm with validation
+async function installPnpm(version: string, debugEnabled: boolean): Promise<void> {
+  core.info(`🔍 Installing pnpm version: ${version}`);
+
+  // Install pnpm
+  await execCommand('curl', ['-fsSL', 'https://get.pnpm.io/install.sh', '|', 'sh'], debugEnabled);
+
+  // Set PNPM_HOME and update PATH
+  const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
+  core.exportVariable('PNPM_HOME', pnpmHome);
+  core.addPath(pnpmHome);
+
+  // Validate installation
+  await execCommand('pnpm', ['-v'], debugEnabled);
+
+  core.info(`✅ pnpm installed successfully`);
+}
+
 // Run the action
 async function run(): Promise<void> {
   try {
@@ -184,6 +202,8 @@ async function run(): Promise<void> {
     const kubectlVersion = core.getInput('kubectl-version');
     const yqVersion = core.getInput('yq-version');
     const argocdVersion = core.getInput('argocd-version');
+    const pnpmEnabled = core.getInput('pnpm-enabled') === 'true';
+    const pnpmVersion = core.getInput('pnpm-version');
 
     const kubeconfigBase64 = core.getInput('kubeconfig');
 
@@ -196,7 +216,8 @@ async function run(): Promise<void> {
       helmEnabled ? installHelm(helmVersion, debugEnabled) : Promise.resolve(),
       kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
       yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
-      argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve()
+      argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve(),
+      pnpmEnabled ? installPnpm(pnpmVersion, debugEnabled) : Promise.resolve()
     ]);
 
     // ✅ Execute user-defined command if provided
