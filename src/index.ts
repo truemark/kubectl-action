@@ -213,19 +213,24 @@ async function installPnpm(version: string, debugEnabled: boolean): Promise<void
     await execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
   }
 
-  // Validate installation
-  const pnpmPath = await execCommand('which', ['pnpm'], debugEnabled);
-  if (!pnpmPath) {
-    core.setFailed('❌ pnpm installation failed. Could not locate binary.');
-    throw new Error('pnpm binary not found after installation.');
-  }
-
+  // Manually export PNPM_HOME and update PATH
   const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
   core.exportVariable('PNPM_HOME', pnpmHome);
   core.addPath(pnpmHome);
 
-  await execCommand('pnpm', ['-v'], debugEnabled);
-  core.info(`✅ pnpm installed successfully at ${pnpmPath}`);
+  // Ensure .bashrc is sourced
+  await execCommand('sh', ['-c', `echo 'export PNPM_HOME="${pnpmHome}"' >> ~/.bashrc`], debugEnabled);
+  await execCommand('sh', ['-c', 'echo \'export PATH="$PNPM_HOME:$PATH"\' >> ~/.bashrc'], debugEnabled);
+  await execCommand('sh', ['-c', 'source ~/.bashrc'], debugEnabled);
+
+  // Verify pnpm installation
+  try {
+    const pnpmPath = await execCommand('which', ['pnpm'], debugEnabled);
+    core.info(`✅ pnpm installed successfully at ${pnpmPath}`);
+  } catch (error) {
+    core.setFailed('❌ pnpm installation failed. Could not locate binary.');
+    throw new Error('pnpm binary not found after installation.');
+  }
 }
 
 // Run the action
