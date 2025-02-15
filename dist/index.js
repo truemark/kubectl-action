@@ -260,10 +260,8 @@ function installPnpm(version, debugEnabled) {
         const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
         core.exportVariable('PNPM_HOME', pnpmHome);
         core.addPath(pnpmHome);
-        // Ensure .bashrc is sourced
-        yield execCommand('sh', ['-c', `echo 'export PNPM_HOME="${pnpmHome}"' >> ~/.bashrc`], debugEnabled);
-        yield execCommand('sh', ['-c', 'echo \'export PATH="$PNPM_HOME:$PATH"\' >> ~/.bashrc'], debugEnabled);
-        yield execCommand('sh', ['-c', 'source ~/.bashrc'], debugEnabled);
+        // Ensure shell session recognizes `pnpm` immediately
+        yield execCommand('sh', ['-c', `export PATH="$PNPM_HOME:$PATH"`], debugEnabled);
         // Verify pnpm installation
         try {
             const pnpmPath = yield execCommand('which', ['pnpm'], debugEnabled);

@@ -218,10 +218,8 @@ async function installPnpm(version: string, debugEnabled: boolean): Promise<void
   core.exportVariable('PNPM_HOME', pnpmHome);
   core.addPath(pnpmHome);
 
-  // Ensure .bashrc is sourced
-  await execCommand('sh', ['-c', `echo 'export PNPM_HOME="${pnpmHome}"' >> ~/.bashrc`], debugEnabled);
-  await execCommand('sh', ['-c', 'echo \'export PATH="$PNPM_HOME:$PATH"\' >> ~/.bashrc'], debugEnabled);
-  await execCommand('sh', ['-c', 'source ~/.bashrc'], debugEnabled);
+  // Ensure shell session recognizes `pnpm` immediately
+  await execCommand('sh', ['-c', `export PATH="$PNPM_HOME:$PATH"`], debugEnabled);
 
   // Verify pnpm installation
   try {
