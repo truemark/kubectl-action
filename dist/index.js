@@ -55,43 +55,26 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(9999));
 const exec = __importStar(__nccwpck_require__(8872));
 const axios_1 = __importDefault(__nccwpck_require__(4584));
-function installTool(toolName, url, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const binPath = `${process.env.HOME}/bin`;
-        const destination = `${binPath}/${toolName}`;
-        core.info(`🔍 Downloading ${toolName} from: ${url}`);
-        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-        yield execCommand('curl', ['-sSL', '-o', `/tmp/${toolName}`, url], debugEnabled);
-        // Validate Download
-        const fileCheck = yield exec.exec('file', [`/tmp/${toolName}`], { silent: true, ignoreReturnCode: true });
-        if (fileCheck !== 0) {
-            core.setFailed(`❌ Failed to download a valid ${toolName} binary from ${url}`);
-            return;
-        }
-        yield execCommand('mv', [`/tmp/${toolName}`, destination], debugEnabled);
-        yield execCommand('chmod', ['+x', destination], debugEnabled);
-        core.addPath(binPath);
-        core.info(`✅ Installed ${toolName} at ${destination}`);
-    });
-}
 function execCommand(command, args, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             let output = '';
+            let errorOutput = '';
             yield exec.exec(command, args, {
                 silent: !debugEnabled,
                 listeners: {
-                    stdout: (data) => {
-                        output += data.toString();
-                    }
+                    stdout: (data) => (output += data.toString()),
+                    stderr: (data) => (errorOutput += data.toString())
                 }
             });
+            if (errorOutput) {
+                core.warning(`⚠️ Command Warning: ${command} ${args.join(' ')}\n${errorOutput}`);
+            }
             return output.trim();
         }
         catch (error) {
-            core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-            core.setFailed(`Execution failed: ${command} ${args.join(' ')}`);
-            throw error;
+            core.error(`❌ Command Failed: ${command} ${args.join(' ')}\nError: ${error}`);
+            throw new Error(`Execution failed: ${command} ${args.join(' ')}\n${error}`);
         }
     });
 }
@@ -120,6 +103,11 @@ function installHelm(version, debugEnabled) {
         const helmUrl = `https://get.helm.sh/helm-v${version}-linux-amd64.tar.gz`;
         core.info(`🔍 Downloading Helm from: ${helmUrl}`);
         yield execCommand('curl', ['-sSL', '-o', '/tmp/helm.tar.gz', helmUrl], debugEnabled);
+        // Validate download
+        const fileCheck = yield execCommand('file', ['/tmp/helm.tar.gz'], debugEnabled);
+        if (!fileCheck.includes("gzip compressed data")) {
+            throw new Error(`❌ Invalid Helm archive downloaded from ${helmUrl}`);
+        }
         yield execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
         const helmBinaryPath = '/tmp/linux-amd64/helm';
         const userBinPath = `${process.env.HOME}/bin/helm`;
@@ -130,13 +118,13 @@ function installHelm(version, debugEnabled) {
     });
 }
 // Install Kubectl with stable version caching and validation
-let cachedKubectlVersion = null;
 function installKubectl(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (version === 'stable' && !cachedKubectlVersion) {
-            cachedKubectlVersion = (yield axios_1.default.get('https://dl.k8s.io/release/stable.txt')).data.trim();
+        let kubectlVersion = version;
+        if (version === 'stable') {
+            core.info('🔍 Fetching latest stable kubectl version...');
+            kubectlVersion = (yield axios_1.default.get('https://dl.k8s.io/release/stable.txt')).data.trim();
         }
-        const kubectlVersion = version === 'stable' ? cachedKubectlVersion : `v${version}`;
         const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
         yield installFromURL('kubectl', kubectlUrl, debugEnabled);
     });
@@ -207,41 +195,6 @@ function installArgoCD(version, debugEnabled) {
         core.info(`✅ Installed ArgoCD at ${destination}`);
     });
 }
-function installNode(version, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.info(`🔍 Installing Node.js version: ${version}`);
-        const nodeUrl = `https://nodejs.org/dist/v${version}/node-v${version}-linux-x64.tar.xz`;
-        const binPath = `${process.env.HOME}/bin`;
-        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-        yield execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
-        // Validate Download
-        const fileCheck = yield exec.exec('file', ['/tmp/node.tar.xz'], { silent: true, ignoreReturnCode: true });
-        if (fileCheck !== 0) {
-            core.setFailed(`❌ Failed to download a valid Node.js archive from ${nodeUrl}`);
-            return;
-        }
-        yield execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
-        yield execCommand('mv', [`/tmp/node-v${version}-linux-x64/bin/node`, `${binPath}/node`], debugEnabled);
-        yield execCommand('chmod', ['+x', `${binPath}/node`], debugEnabled);
-        core.addPath(binPath);
-        core.info(`✅ Installed Node.js at ${binPath}/node`);
-    });
-}
-// Install pnpm with validation
-function installPnpm(version, debugEnabled) {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.info(`🔍 Installing pnpm version: ${version}`);
-        const binPath = `${process.env.HOME}/bin`;
-        yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-        // Install a specific version of pnpm
-        const installScript = `curl -fsSL https://get.pnpm.io/install.sh | sh -s -- --version=${version}`;
-        yield execCommand('sh', ['-c', installScript], debugEnabled);
-        yield execCommand('mv', [`$HOME/.local/share/pnpm/pnpm`, `${binPath}/pnpm`], debugEnabled);
-        yield execCommand('chmod', ['+x', `${binPath}/pnpm`], debugEnabled);
-        core.addPath(binPath);
-        core.info(`✅ Installed pnpm at ${binPath}/pnpm`);
-    });
-}
 // Run the action
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -252,26 +205,25 @@ function run() {
             const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
             const yqEnabled = core.getInput('yq-enabled') === 'true';
             const argocdEnabled = core.getInput('argocd-enabled') === 'true';
-            const pnpmEnabled = core.getInput('pnpm-enabled') === 'true';
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
-            const nodeVersion = core.getInput('node-version') || 'lts';
-            const pnpmVersion = core.getInput('pnpm-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
             if (kubectlEnabled && !kubeconfigBase64) {
                 core.warning('⚠️ No KUBECONFIG provided. Kubectl may fail.');
             }
-            // Parallel installation
-            yield Promise.all([
-                installHelm(helmVersion, debugEnabled),
-                installKubectl(kubectlVersion, debugEnabled),
-                installYQ(yqVersion, debugEnabled),
-                installArgoCD(argocdVersion, debugEnabled),
-                installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled))
-            ]);
-            // ✅ Execute user-defined command if provided
+            const installTasks = [];
+            if (helmEnabled)
+                installTasks.push(installHelm(helmVersion, debugEnabled));
+            if (kubectlEnabled)
+                installTasks.push(installKubectl(kubectlVersion, debugEnabled));
+            if (yqEnabled)
+                installTasks.push(installYQ(yqVersion, debugEnabled));
+            if (argocdEnabled)
+                installTasks.push(installArgoCD(argocdVersion, debugEnabled));
+            yield Promise.all(installTasks);
+            core.info("✅ All enabled tools installed successfully!");
             const userCommand = core.getInput('command');
             if (userCommand) {
                 core.info(`🚀 Executing user command: ${userCommand}`);
