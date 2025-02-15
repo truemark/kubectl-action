@@ -206,8 +206,15 @@ async function installNode(debugEnabled: boolean): Promise<void> {
 async function installPnpm(version: string, debugEnabled: boolean): Promise<void> {
   core.info(`🔍 Installing pnpm version: ${version}`);
 
-  // Install pnpm
-  await execCommand('curl', ['-fsSL', 'https://get.pnpm.io/install.sh', '|', 'sh'], debugEnabled);
+  try {
+    // First attempt using the official URL
+    await execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
+  } catch (error) {
+    core.warning('⚠️ Failed to install pnpm from get.pnpm.io, trying GitHub fallback...');
+
+    // Fallback: Use GitHub mirror
+    await execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
+  }
 
   // Set PNPM_HOME and update PATH
   const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;

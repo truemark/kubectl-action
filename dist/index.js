@@ -249,8 +249,15 @@ function installNode(debugEnabled) {
 function installPnpm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`🔍 Installing pnpm version: ${version}`);
-        // Install pnpm
-        yield execCommand('curl', ['-fsSL', 'https://get.pnpm.io/install.sh', '|', 'sh'], debugEnabled);
+        try {
+            // First attempt using the official URL
+            yield execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
+        }
+        catch (error) {
+            core.warning('⚠️ Failed to install pnpm from get.pnpm.io, trying GitHub fallback...');
+            // Fallback: Use GitHub mirror
+            yield execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
+        }
         // Set PNPM_HOME and update PATH
         const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
         core.exportVariable('PNPM_HOME', pnpmHome);
