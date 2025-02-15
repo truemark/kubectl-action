@@ -169,6 +169,19 @@ async function installArgoCD(version: string, debugEnabled: boolean): Promise<vo
   core.info(`✅ Installed ArgoCD at ${destination}`);
 }
 
+async function installNode(debugEnabled: boolean): Promise<void> {
+  try {
+    await execCommand('node', ['-v'], debugEnabled);
+    core.info('✅ Node.js is already installed');
+  } catch (error) {
+    core.info('⚠️ Node.js is missing. Installing now...');
+    await execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x', '|', 'bash', '-'], debugEnabled);
+    await execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
+    await execCommand('node', ['-v'], debugEnabled);
+    core.info('✅ Node.js installed successfully');
+  }
+}
+
 // Install pnpm with validation
 async function installPnpm(version: string, debugEnabled: boolean): Promise<void> {
   core.info(`🔍 Installing pnpm version: ${version}`);
@@ -217,7 +230,7 @@ async function run(): Promise<void> {
       kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
       yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
       argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve(),
-      pnpmEnabled ? installPnpm(pnpmVersion, debugEnabled) : Promise.resolve()
+      pnpmEnabled ? installNode(debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled)) : Promise.resolve()
     ]);
 
     // ✅ Execute user-defined command if provided
