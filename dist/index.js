@@ -98,7 +98,7 @@ function execCommand(command, args, debugEnabled) {
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
-            core.setFailed(error.message);
+            core.setFailed(`Execution failed: ${command} ${args.join(' ')}`);
             throw error;
         }
     });
@@ -250,21 +250,23 @@ function installPnpm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`🔍 Installing pnpm version: ${version}`);
         try {
-            // First attempt using the official URL
             yield execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
         }
         catch (error) {
             core.warning('⚠️ Failed to install pnpm from get.pnpm.io, trying GitHub fallback...');
-            // Fallback: Use GitHub mirror
             yield execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
         }
-        // Set PNPM_HOME and update PATH
+        // Validate installation
+        const pnpmPath = yield execCommand('which', ['pnpm'], debugEnabled);
+        if (!pnpmPath) {
+            core.setFailed('❌ pnpm installation failed. Could not locate binary.');
+            throw new Error('pnpm binary not found after installation.');
+        }
         const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
         core.exportVariable('PNPM_HOME', pnpmHome);
         core.addPath(pnpmHome);
-        // Validate installation
         yield execCommand('pnpm', ['-v'], debugEnabled);
-        core.info(`✅ pnpm installed successfully`);
+        core.info(`✅ pnpm installed successfully at ${pnpmPath}`);
     });
 }
 // Run the action
@@ -277,11 +279,11 @@ function run() {
             const kubectlEnabled = core.getInput('kubectl-enabled') === 'true';
             const yqEnabled = core.getInput('yq-enabled') === 'true';
             const argocdEnabled = core.getInput('argocd-enabled') === 'true';
+            const pnpmEnabled = core.getInput('pnpm-enabled') === 'true';
             const helmVersion = core.getInput('helm-version');
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
-            const pnpmEnabled = core.getInput('pnpm-enabled') === 'true';
             const pnpmVersion = core.getInput('pnpm-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
             if (kubectlEnabled && !kubeconfigBase64) {
