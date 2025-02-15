@@ -256,12 +256,14 @@ function installPnpm(version, debugEnabled) {
             core.warning('⚠️ Failed to install pnpm from get.pnpm.io, trying GitHub fallback...');
             yield execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
         }
-        // Manually export PNPM_HOME and update PATH
+        // Manually set PNPM_HOME
         const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
         core.exportVariable('PNPM_HOME', pnpmHome);
-        core.addPath(pnpmHome);
-        // Ensure shell session recognizes `pnpm` immediately
-        yield execCommand('sh', ['-c', `export PATH="$PNPM_HOME:$PATH"`], debugEnabled);
+        core.addPath(pnpmHome); // Add to PATH for future steps
+        // Force immediate PATH update in the current shell
+        const updatedPath = `${pnpmHome}:${process.env.PATH}`;
+        process.env.PATH = updatedPath; // Ensure it's available in this process
+        yield execCommand('sh', ['-c', `export PATH="${updatedPath}"`], debugEnabled);
         // Verify pnpm installation
         try {
             const pnpmPath = yield execCommand('which', ['pnpm'], debugEnabled);

@@ -213,13 +213,15 @@ async function installPnpm(version: string, debugEnabled: boolean): Promise<void
     await execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
   }
 
-  // Manually export PNPM_HOME and update PATH
+  // Manually set PNPM_HOME
   const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
   core.exportVariable('PNPM_HOME', pnpmHome);
-  core.addPath(pnpmHome);
+  core.addPath(pnpmHome); // Add to PATH for future steps
 
-  // Ensure shell session recognizes `pnpm` immediately
-  await execCommand('sh', ['-c', `export PATH="$PNPM_HOME:$PATH"`], debugEnabled);
+  // Force immediate PATH update in the current shell
+  const updatedPath = `${pnpmHome}:${process.env.PATH}`;
+  process.env.PATH = updatedPath; // Ensure it's available in this process
+  await execCommand('sh', ['-c', `export PATH="${updatedPath}"`], debugEnabled);
 
   // Verify pnpm installation
   try {
