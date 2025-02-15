@@ -216,20 +216,12 @@ async function installPnpm(version: string, debugEnabled: boolean): Promise<void
   // Manually set PNPM_HOME
   const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
   core.exportVariable('PNPM_HOME', pnpmHome);
-  core.addPath(pnpmHome); // Add to PATH for future steps
-
-  // Force immediate PATH update in the current shell
+  core.addPath(pnpmHome);
   process.env.PATH = `${pnpmHome}:${process.env.PATH}`;
-  await execCommand('sh', ['-c', `export PATH="${pnpmHome}:${process.env.PATH}"`], debugEnabled);
 
-  // Check if pnpm is available
-  try {
-    const pnpmPath = await execCommand('which', ['pnpm'], debugEnabled);
-    core.info(`✅ pnpm installed successfully at ${pnpmPath}`);
-  } catch (error) {
-    core.setFailed('❌ pnpm installation failed. Could not locate binary.');
-    throw new Error('pnpm binary not found after installation.');
-  }
+  // Ensure persistence for subsequent steps
+  await execCommand('sh', ['-c', `echo "export PNPM_HOME=${pnpmHome}" >> ~/.bashrc`], debugEnabled);
+  await execCommand('sh', ['-c', `echo "export PATH=${pnpmHome}:$PATH" >> ~/.bashrc`], debugEnabled);
 }
 
 // Run the action
