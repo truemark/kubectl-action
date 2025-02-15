@@ -261,10 +261,9 @@ function installPnpm(version, debugEnabled) {
         core.exportVariable('PNPM_HOME', pnpmHome);
         core.addPath(pnpmHome); // Add to PATH for future steps
         // Force immediate PATH update in the current shell
-        const updatedPath = `${pnpmHome}:${process.env.PATH}`;
-        process.env.PATH = updatedPath; // Ensure it's available in this process
-        yield execCommand('sh', ['-c', `export PATH="${updatedPath}"`], debugEnabled);
-        // Verify pnpm installation
+        process.env.PATH = `${pnpmHome}:${process.env.PATH}`;
+        yield execCommand('sh', ['-c', `export PATH="${pnpmHome}:${process.env.PATH}"`], debugEnabled);
+        // Check if pnpm is available
         try {
             const pnpmPath = yield execCommand('which', ['pnpm'], debugEnabled);
             core.info(`✅ pnpm installed successfully at ${pnpmPath}`);

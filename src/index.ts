@@ -219,11 +219,10 @@ async function installPnpm(version: string, debugEnabled: boolean): Promise<void
   core.addPath(pnpmHome); // Add to PATH for future steps
 
   // Force immediate PATH update in the current shell
-  const updatedPath = `${pnpmHome}:${process.env.PATH}`;
-  process.env.PATH = updatedPath; // Ensure it's available in this process
-  await execCommand('sh', ['-c', `export PATH="${updatedPath}"`], debugEnabled);
+  process.env.PATH = `${pnpmHome}:${process.env.PATH}`;
+  await execCommand('sh', ['-c', `export PATH="${pnpmHome}:${process.env.PATH}"`], debugEnabled);
 
-  // Verify pnpm installation
+  // Check if pnpm is available
   try {
     const pnpmPath = await execCommand('which', ['pnpm'], debugEnabled);
     core.info(`✅ pnpm installed successfully at ${pnpmPath}`);
