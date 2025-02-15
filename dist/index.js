@@ -85,7 +85,16 @@ function installCurl(debugEnabled) {
 function execCommand(command, args, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            yield exec.exec(command, args, { silent: !debugEnabled });
+            let output = '';
+            yield exec.exec(command, args, {
+                silent: !debugEnabled,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            });
+            return output.trim();
         }
         catch (error) {
             core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
@@ -219,8 +228,18 @@ function installNode(debugEnabled) {
         }
         catch (error) {
             core.info('⚠️ Node.js is missing. Installing now...');
-            yield execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x', '|', 'bash', '-'], debugEnabled);
-            yield execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
+            // Detect Amazon Linux
+            const osRelease = yield execCommand('cat', ['/etc/os-release'], debugEnabled);
+            if (osRelease.includes('Amazon Linux')) {
+                core.info('📦 Detected Amazon Linux, using dnf to install Node.js');
+                yield execCommand('sudo', ['dnf', 'install', '-y', 'nodejs'], debugEnabled);
+            }
+            else {
+                core.info('📦 Using nodesource setup script');
+                yield execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x'], debugEnabled);
+                yield execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
+            }
+            // Verify Node.js installation
             yield execCommand('node', ['-v'], debugEnabled);
             core.info('✅ Node.js installed successfully');
         }

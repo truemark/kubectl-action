@@ -26,9 +26,18 @@ async function installCurl(debugEnabled: boolean): Promise<void> {
   }
 }
 
-async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<void> {
+async function execCommand(command: string, args: string[], debugEnabled: boolean): Promise<string> {
   try {
-    await exec.exec(command, args, { silent: !debugEnabled });
+    let output = '';
+    await exec.exec(command, args, {
+      silent: !debugEnabled,
+      listeners: {
+        stdout: (data: Buffer) => {
+          output += data.toString();
+        }
+      }
+    });
+    return output.trim();
   } catch (error) {
     core.error(`❌ Error executing: ${command} ${args.join(' ')}`);
     core.setFailed((error as Error).message);
@@ -175,8 +184,19 @@ async function installNode(debugEnabled: boolean): Promise<void> {
     core.info('✅ Node.js is already installed');
   } catch (error) {
     core.info('⚠️ Node.js is missing. Installing now...');
-    await execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x', '|', 'bash', '-'], debugEnabled);
-    await execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
+
+    // Detect Amazon Linux
+    const osRelease = await execCommand('cat', ['/etc/os-release'], debugEnabled);
+    if (osRelease.includes('Amazon Linux')) {
+      core.info('📦 Detected Amazon Linux, using dnf to install Node.js');
+      await execCommand('sudo', ['dnf', 'install', '-y', 'nodejs'], debugEnabled);
+    } else {
+      core.info('📦 Using nodesource setup script');
+      await execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x'], debugEnabled);
+      await execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
+    }
+
+    // Verify Node.js installation
     await execCommand('node', ['-v'], debugEnabled);
     core.info('✅ Node.js installed successfully');
   }
