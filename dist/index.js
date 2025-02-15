@@ -220,28 +220,36 @@ function installArgoCD(version, debugEnabled) {
         core.info(`✅ Installed ArgoCD at ${destination}`);
     });
 }
-function installNode(debugEnabled) {
+function installNode(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
+        core.info(`🔍 Installing Node.js version: ${version}`);
+        const binPath = `${process.env.HOME}/bin`;
+        const nodeBinary = `${binPath}/node`;
         try {
-            yield execCommand('node', ['-v'], debugEnabled);
-            core.info('✅ Node.js is already installed');
+            // Ensure bin directory exists
+            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+            // Fetch latest LTS version if needed
+            let nodeVersion = version;
+            if (nodeVersion === 'latest') {
+                nodeVersion = (yield axios_1.default.get('https://nodejs.org/dist/index.json')).data
+                    .find((v) => v.lts).version.replace(/^v/, '');
+            }
+            const nodeUrl = `https://nodejs.org/dist/v${nodeVersion}/node-v${nodeVersion}-linux-x64.tar.xz`;
+            core.info(`📦 Downloading Node.js from: ${nodeUrl}`);
+            // Download Node.js archive
+            yield execCommand('curl', ['-sSL', '-o', '/tmp/node.tar.xz', nodeUrl], debugEnabled);
+            // Extract node binaries
+            yield execCommand('tar', ['-xf', '/tmp/node.tar.xz', '-C', '/tmp'], debugEnabled);
+            // Move node binary to $HOME/bin
+            yield execCommand('mv', [`/tmp/node-v${nodeVersion}-linux-x64/bin/node`, nodeBinary], debugEnabled);
+            yield execCommand('chmod', ['+x', nodeBinary], debugEnabled);
+            // Add node to PATH
+            core.addPath(binPath);
+            process.env.PATH = `${binPath}:${process.env.PATH}`;
+            core.info(`✅ Installed Node.js at ${nodeBinary}`);
         }
         catch (error) {
-            core.info('⚠️ Node.js is missing. Installing now...');
-            // Detect Amazon Linux
-            const osRelease = yield execCommand('cat', ['/etc/os-release'], debugEnabled);
-            if (osRelease.includes('Amazon Linux')) {
-                core.info('📦 Detected Amazon Linux, using dnf to install Node.js');
-                yield execCommand('sudo', ['dnf', 'install', '-y', 'nodejs'], debugEnabled);
-            }
-            else {
-                core.info('📦 Using nodesource setup script');
-                yield execCommand('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x'], debugEnabled);
-                yield execCommand('sudo', ['apt-get', 'install', '-y', 'nodejs'], debugEnabled);
-            }
-            // Verify Node.js installation
-            yield execCommand('node', ['-v'], debugEnabled);
-            core.info('✅ Node.js installed successfully');
+            core.setFailed(`❌ Failed to install Node.js: ${error.message}`);
         }
     });
 }
@@ -249,21 +257,25 @@ function installNode(debugEnabled) {
 function installPnpm(version, debugEnabled) {
     return __awaiter(this, void 0, void 0, function* () {
         core.info(`🔍 Installing pnpm version: ${version}`);
+        // Define installation paths
+        const binPath = `${process.env.HOME}/bin`;
+        const pnpmBinary = `${binPath}/pnpm`;
         try {
+            // Ensure the bin directory exists
+            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+            // Download and install pnpm
             yield execCommand('sh', ['-c', 'curl -fsSL https://get.pnpm.io/install.sh | sh'], debugEnabled);
+            // Move pnpm to binPath
+            yield execCommand('mv', ['/home/ec2-user/.local/share/pnpm/pnpm', pnpmBinary], debugEnabled);
+            yield execCommand('chmod', ['+x', pnpmBinary], debugEnabled);
+            // Add to PATH dynamically
+            core.addPath(binPath);
+            process.env.PATH = `${binPath}:${process.env.PATH}`;
+            core.info(`✅ Installed pnpm at ${pnpmBinary}`);
         }
         catch (error) {
-            core.warning('⚠️ Failed to install pnpm from get.pnpm.io, trying GitHub fallback...');
-            yield execCommand('sh', ['-c', 'curl -fsSL https://raw.githubusercontent.com/pnpm/self-installer/master/install.js | node'], debugEnabled);
+            core.setFailed(`❌ Failed to install pnpm: ${error.message}`);
         }
-        // Manually set PNPM_HOME
-        const pnpmHome = `${process.env.HOME}/.local/share/pnpm`;
-        core.exportVariable('PNPM_HOME', pnpmHome);
-        core.addPath(pnpmHome);
-        process.env.PATH = `${pnpmHome}:${process.env.PATH}`;
-        // Ensure persistence for subsequent steps
-        yield execCommand('sh', ['-c', `echo "export PNPM_HOME=${pnpmHome}" >> ~/.bashrc`], debugEnabled);
-        yield execCommand('sh', ['-c', `echo "export PATH=${pnpmHome}:$PATH" >> ~/.bashrc`], debugEnabled);
     });
 }
 // Run the action
@@ -281,6 +293,7 @@ function run() {
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
+            const nodeVersion = core.getInput('node-version') || 'lts';
             const pnpmVersion = core.getInput('pnpm-version');
             const kubeconfigBase64 = core.getInput('kubeconfig');
             if (kubectlEnabled && !kubeconfigBase64) {
@@ -292,7 +305,7 @@ function run() {
                 kubectlEnabled ? installKubectl(kubectlVersion, debugEnabled) : Promise.resolve(),
                 yqEnabled ? installYQ(yqVersion, debugEnabled) : Promise.resolve(),
                 argocdEnabled ? installArgoCD(argocdVersion, debugEnabled) : Promise.resolve(),
-                pnpmEnabled ? installNode(debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled)) : Promise.resolve()
+                pnpmEnabled ? installNode(nodeVersion, debugEnabled).then(() => installPnpm(pnpmVersion, debugEnabled)) : Promise.resolve()
             ]);
             // ✅ Execute user-defined command if provided
             const userCommand = core.getInput('command');
