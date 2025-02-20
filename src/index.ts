@@ -61,14 +61,16 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
     throw new Error(`❌ Invalid Helm archive downloaded from ${helmUrl}`);
   }
 
+  // Extract Helm
   await execCommand('tar', ['-xz', '-f', '/tmp/helm.tar.gz', '-C', '/tmp'], debugEnabled);
   const helmBinaryPath = '/tmp/linux-amd64/helm';
-  const userBinPath = `${process.env.HOME}/bin/helm`;
 
-  await execCommand('mv', [helmBinaryPath, userBinPath], debugEnabled);
-  await execCommand('chmod', ['+x', userBinPath], debugEnabled);
-  core.addPath(`${process.env.HOME}/bin`);
-  core.info(`✅ Helm installed at ${userBinPath}`);
+  // Fix: Use /usr/local/bin instead of $HOME/bin
+  const installDir = '/usr/local/bin';
+  await execCommand('sudo', ['mv', helmBinaryPath, `${installDir}/helm`], debugEnabled);
+  await execCommand('sudo', ['chmod', '+x', `${installDir}/helm`], debugEnabled);
+
+  core.info(`✅ Helm installed at ${installDir}/helm`);
 }
 
 // Install Kubectl with stable version caching and validation
