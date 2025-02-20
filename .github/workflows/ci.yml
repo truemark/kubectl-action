@@ -38,6 +38,12 @@ jobs:
       - name: Package Action (NCC)
         run: pnpm package
 
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifact
+          path: dist/
+
   install-tools-test:
     name: Verify Installation
     runs-on: ubuntu-latest
@@ -46,6 +52,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifact
+          path: dist/
 
       - name: Install Kubernetes Tools
         uses: ./
