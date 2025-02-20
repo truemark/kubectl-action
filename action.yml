@@ -5,29 +5,26 @@ inputs:
     description: 'Enable installation of Helm'
     required: false
     default: 'false'
-  kubectl-enabled:
-    description: 'Enable installation of Kubectl'
-    required: false
-    default: 'false'
-  yq-enabled:
-    description: 'Enable installation of YQ'
-    required: false
-    default: 'false'
   helm-version:
     description: 'The version of Helm to install'
     required: false
     default: '3.17.1'
+  kubectl-enabled:
+    description: 'Enable installation of Kubectl'
+    required: false
+    default: 'false'
   kubectl-version:
     description: 'The version of Kubectl to install'
     required: false
     default: 'stable'
+  yq-enabled:
+    description: 'Enable installation of YQ'
+    required: false
+    default: 'false'
   yq-version:
     description: 'The version of YQ to install'
     required: false
     default: 'latest'
-  kubeconfig:
-    description: 'Base64-encoded KUBECONFIG content'
-    required: false
   argocd-enabled:
     description: 'Enable ArgoCD CLI installation'
     required: false
@@ -36,6 +33,9 @@ inputs:
     description: 'Version of ArgoCD CLI to install (use "latest" for the latest version)'
     required: false
     default: 'latest'
+  kubeconfig:
+    description: 'Base64-encoded KUBECONFIG content'
+    required: false
   command:
     description: "Command to execute after installing tools"
     required: false

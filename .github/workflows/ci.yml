@@ -39,7 +39,7 @@ jobs:
         run: pnpm package
 
   install-tools-test:
-    name: Verify Tools are Installed
+    name: Verify Installation
     runs-on: ubuntu-latest
     needs: build-and-test
 
@@ -52,15 +52,12 @@ jobs:
         with:
           tools-debug-enabled: 'true'
           helm-enabled: 'true'
-          helm-version: '3.13.0'
+          helm-version: '3.17.1'
           kubectl-enabled: 'true'
           kubectl-version: '1.27.0'
           yq-enabled: 'true'
-          yq-version: 'latest'
-          argo-enabled: 'true'
-          argo-version: 'latest'
           argocd-enabled: 'true'
-          argocd-version: 'latest'
+          command: "curl -I https://www.google.com"
 
       - name: Verify Helm Installation
         run: helm version --short
