@@ -1,0 +1,28 @@
+{
+  "name": "kubectl-action",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm tsc",
+    "package": "pnpm ncc build dist/index.js -o dist",
+    "lint": "eslint 'src/**/*.{ts,js}'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/node": "^22.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.23.0",
+    "@typescript-eslint/parser": "^8.23.0",
+    "@vercel/ncc": "^0.38.3",
+    "eslint": "^9.20.0",
+    "typescript": "^5.7.2"
+  }
+}
