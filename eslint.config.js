@@ -1,19 +1,17 @@
-import eslintPlugin from "@typescript-eslint/eslint-plugin";
-import eslintParser from "@typescript-eslint/parser";
-
-export default [
+module.exports = [
   {
-    ignores: ["node_modules", "dist"],
+    ignores: ["dist", "lib", "node_modules"],
   },
   {
+    files: ["src/**/*.ts"],
     languageOptions: {
-      parser: eslintParser,
+      parser: require("@typescript-eslint/parser"),
       parserOptions: {
         project: "./tsconfig.json",
       },
     },
     plugins: {
-      "@typescript-eslint": eslintPlugin,
+      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
     },
     rules: {
       "no-console": "warn",
