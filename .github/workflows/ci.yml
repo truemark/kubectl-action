@@ -1,4 +1,4 @@
-name: CI - Build, Test & Validate
+name: CI - Build, Validate
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 
 jobs:
   build-and-test:
+    name: Build Action
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +25,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
       - name: Install Dependencies
         run: pnpm install
@@ -39,6 +39,7 @@ jobs:
         run: pnpm package
 
   install-tools-test:
+    name: Verify Tools are Installed
     runs-on: ubuntu-latest
     needs: build-and-test
 
