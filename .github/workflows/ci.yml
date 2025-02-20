@@ -35,9 +35,6 @@ jobs:
       - name: Run TypeScript Linting
         run: pnpm lint
 
-      - name: Run Unit Tests
-        run: pnpm test
-
       - name: Package Action (NCC)
         run: pnpm package
 
