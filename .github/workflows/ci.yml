@@ -47,7 +47,7 @@ jobs:
       - name: Build & Test Summary (Success)
         if: success()
         run: |
-          echo "## ✅ Build and Test Passed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Build Passed Successfully" >> $GITHUB_STEP_SUMMARY
           echo "- Node.js Version: $(node -v)" >> $GITHUB_STEP_SUMMARY
           echo "- PNPM Version: $(pnpm -v)" >> $GITHUB_STEP_SUMMARY
           echo "- Build and test completed without issues." >> $GITHUB_STEP_SUMMARY
@@ -55,7 +55,7 @@ jobs:
       - name: Build & Test Summary (Failure)
         if: failure()
         run: |
-          echo "## ❌ Build and Test Failed" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
           echo "- Node.js Version: $(node -v)" >> $GITHUB_STEP_SUMMARY
           echo "- PNPM Version: $(pnpm -v)" >> $GITHUB_STEP_SUMMARY
           echo "- Check logs for detailed error messages." >> $GITHUB_STEP_SUMMARY

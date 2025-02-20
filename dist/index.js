@@ -119,8 +119,18 @@ function installKubectl(version, debugEnabled) {
             core.info('🔍 Fetching latest stable kubectl version...');
             kubectlVersion = (yield axios_1.default.get('https://dl.k8s.io/release/stable.txt')).data.trim();
         }
-        const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
-        yield installFromURL('kubectl', kubectlUrl, debugEnabled);
+        const kubectlUrl = `https://storage.googleapis.com/kubernetes-release/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
+        core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
+        yield execCommand('curl', ['-sSL', '-o', '/tmp/kubectl', kubectlUrl], debugEnabled);
+        // Validate the download
+        const fileCheck = yield execCommand('file', ['/tmp/kubectl'], debugEnabled);
+        if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
+            core.setFailed(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
+            return;
+        }
+        yield execCommand('chmod', ['+x', '/tmp/kubectl'], debugEnabled);
+        yield execCommand('mv', ['/tmp/kubectl', '/usr/local/bin/kubectl'], debugEnabled);
+        core.info(`✅ Installed kubectl at /usr/local/bin/kubectl`);
     });
 }
 function getLatestYQVersion() {
