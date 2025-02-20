@@ -68,8 +68,5 @@ jobs:
       - name: Verify YQ Installation
         run: yq --version
 
-      - name: Verify Argo CLI Installation
-        run: argo version
-
       - name: Verify ArgoCD CLI Installation
         run: argocd version --client
