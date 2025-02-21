@@ -91,7 +91,7 @@ jobs:
           helm-enabled: 'true'
           helm-version: '3.17.1'
           kubectl-enabled: 'true'
-          kubectl-version: '1.27.0'
+          kubectl-version: '1.32.1'
           yq-enabled: 'true'
           argocd-enabled: 'true'
           command: |
@@ -106,7 +106,7 @@ jobs:
         run: |
           echo "## 📜 Install Logs:" > install-tools.log
           helm version --short >> install-tools.log 2>&1 || echo "Helm failed" >> install-tools.log
-          kubectl version --client --short >> install-tools.log 2>&1 || echo "Kubectl failed" >> install-tools.log
+          kubectl version --client >> install-tools.log 2>&1 || echo "Kubectl failed" >> install-tools.log
           yq --version >> install-tools.log 2>&1 || echo "YQ failed" >> install-tools.log
           argocd version --client >> install-tools.log 2>&1 || echo "ArgoCD failed" >> install-tools.log
           echo "## 📜 Raw Failure Logs:" >> install-tools.log
