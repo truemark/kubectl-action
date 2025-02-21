@@ -95,14 +95,11 @@ jobs:
           yq-enabled: 'true'
           argocd-enabled: 'true'
           command: |
-            ARGO_OS="darwin"
-            if [[ uname -s != "Darwin" ]]; then
-              ARGO_OS="linux"
-            fi
+            ARGO_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
             curl -sLO "https://github.com/argoproj/argo-workflows/releases/download/v3.6.4/argo-$ARGO_OS-amd64.gz"
             gunzip "argo-$ARGO_OS-amd64.gz"
             chmod +x "argo-$ARGO_OS-amd64"
-            mv "./argo-$ARGO_OS-amd64" /usr/local/bin/argo
+            sudo mv "./argo-$ARGO_OS-amd64" /usr/local/bin/argo
 
       - name: Capture Install Logs
         if: always()
