@@ -94,13 +94,14 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
   core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
 
   try {
-    // Check HTTP status before downloading
-    const httpStatus = await execCommand('curl', ['-sI', kubectlUrl], debugEnabled);
+    // Check HTTP status while following redirects
+    const httpStatus = await execCommand('curl', ['-sIL', kubectlUrl], debugEnabled);
     if (!httpStatus.includes('200 OK')) {
-      throw new Error(`❌ Failed to fetch kubectl: URL returned non-200 response`);
+      throw new Error(`❌ Failed to fetch kubectl: URL did not return 200 OK`);
     }
 
-    await execCommand('curl', ['-sLO', kubectlUrl], debugEnabled);
+    // Use -L to follow redirects when downloading
+    await execCommand('curl', ['-sLO', '-L', kubectlUrl], debugEnabled);
 
     // Validate the downloaded file
     const fileCheck = await execCommand('file', ['kubectl'], debugEnabled);

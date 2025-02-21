@@ -130,12 +130,13 @@ function installKubectl(version, debugEnabled) {
         const destination = '/usr/local/bin/kubectl';
         core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
         try {
-            // Check HTTP status before downloading
-            const httpStatus = yield execCommand('curl', ['-sI', kubectlUrl], debugEnabled);
+            // Check HTTP status while following redirects
+            const httpStatus = yield execCommand('curl', ['-sIL', kubectlUrl], debugEnabled);
             if (!httpStatus.includes('200 OK')) {
-                throw new Error(`❌ Failed to fetch kubectl: URL returned non-200 response`);
+                throw new Error(`❌ Failed to fetch kubectl: URL did not return 200 OK`);
             }
-            yield execCommand('curl', ['-sLO', kubectlUrl], debugEnabled);
+            // Use -L to follow redirects when downloading
+            yield execCommand('curl', ['-sLO', '-L', kubectlUrl], debugEnabled);
             // Validate the downloaded file
             const fileCheck = yield execCommand('file', ['kubectl'], debugEnabled);
             if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
