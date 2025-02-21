@@ -213,10 +213,6 @@ function run() {
             const kubectlVersion = core.getInput('kubectl-version');
             const yqVersion = core.getInput('yq-version');
             const argocdVersion = core.getInput('argocd-version');
-            const kubeconfigBase64 = core.getInput('kubeconfig');
-            if (kubectlEnabled && !kubeconfigBase64) {
-                core.warning('⚠️ No KUBECONFIG provided. Kubectl may fail.');
-            }
             const installTasks = [];
             if (helmEnabled)
                 installTasks.push(installHelm(helmVersion, debugEnabled));

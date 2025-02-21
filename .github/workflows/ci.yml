@@ -63,8 +63,11 @@ jobs:
 
   install-tools-test:
     name: Verify Installation
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     needs: build-and-test
+    strategy:
+      matrix:
+        runner: [ ubuntu-latest, self-hosted ]
 
     steps:
       - name: Checkout Code
@@ -86,8 +89,7 @@ jobs:
           kubectl-version: '1.27.0'
           yq-enabled: 'true'
           argocd-enabled: 'true'
-          command: "ping -c 4 https://www.google.com"
-        continue-on-error: true
+          command: "nslookup google.com"
 
       - name: Capture Install Logs
         if: always()

@@ -33,9 +33,6 @@ inputs:
     description: 'Version of ArgoCD CLI to install (use "latest" for the latest version)'
     required: false
     default: 'latest'
-  kubeconfig:
-    description: 'Base64-encoded KUBECONFIG content'
-    required: false
   command:
     description: "Command to execute after installing tools"
     required: false
