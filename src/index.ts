@@ -89,25 +89,29 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
   }
 
   const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
-  const binPath = `${process.env.HOME}/bin`;
-  const destination = `${binPath}/kubectl`;
+  const destination = '/usr/local/bin/kubectl';
 
   core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
 
   try {
-    await execCommand('mkdir', ['-p', binPath], debugEnabled);
-    await execCommand('curl', ['-LO', kubectlUrl], debugEnabled);
+    // Check HTTP status before downloading
+    const httpStatus = await execCommand('curl', ['-sI', kubectlUrl], debugEnabled);
+    if (!httpStatus.includes('200 OK')) {
+      throw new Error(`❌ Failed to fetch kubectl: URL returned non-200 response`);
+    }
 
-    // Validate the download
+    await execCommand('curl', ['-sLO', kubectlUrl], debugEnabled);
+
+    // Validate the downloaded file
     const fileCheck = await execCommand('file', ['kubectl'], debugEnabled);
     if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
       throw new Error(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
     }
 
     await execCommand('chmod', ['+x', 'kubectl'], debugEnabled);
-    await execCommand('sudo', ['mv', 'kubectl', '/usr/local/bin/kubectl'], debugEnabled);
+    await execCommand('sudo', ['mv', 'kubectl', destination], debugEnabled);
 
-    core.info(`✅ Installed kubectl at /usr/local/bin/kubectl`);
+    core.info(`✅ Installed kubectl at ${destination}`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(`❌ Failed to install kubectl: ${error.message}`);
