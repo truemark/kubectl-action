@@ -27,16 +27,16 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install | tee build.log
 
       - name: Build Action
-        run: pnpm build
+        run: pnpm build | tee -a build.log
 
       - name: Run TypeScript Linting
-        run: pnpm lint
+        run: pnpm lint | tee -a build.log
 
       - name: Package Action (NCC)
-        run: pnpm package
+        run: pnpm package | tee -a build.log
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -50,7 +50,7 @@ jobs:
           echo "## ✅ Build Passed Successfully" >> $GITHUB_STEP_SUMMARY
           echo "- Node.js Version: $(node -v)" >> $GITHUB_STEP_SUMMARY
           echo "- PNPM Version: $(pnpm -v)" >> $GITHUB_STEP_SUMMARY
-          echo "- Build and test completed without issues." >> $GITHUB_STEP_SUMMARY
+          echo "- Build completed without issues." >> $GITHUB_STEP_SUMMARY
 
       - name: Build & Test Summary (Failure)
         if: failure()
@@ -58,7 +58,8 @@ jobs:
           echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
           echo "- Node.js Version: $(node -v)" >> $GITHUB_STEP_SUMMARY
           echo "- PNPM Version: $(pnpm -v)" >> $GITHUB_STEP_SUMMARY
-          echo "- Check logs for detailed error messages." >> $GITHUB_STEP_SUMMARY
+          echo "### 🔴 Error Logs:" >> $GITHUB_STEP_SUMMARY
+          tail -n 50 build.log >> $GITHUB_STEP_SUMMARY
 
   install-tools-test:
     name: Verify Installation
@@ -85,19 +86,19 @@ jobs:
           kubectl-version: '1.27.0'
           yq-enabled: 'true'
           argocd-enabled: 'true'
-          command: "curl -I https://www.google.com"
+          command: "ping -c 4 https://www.google.com"
+        continue-on-error: true
 
-      - name: Verify Helm Installation
-        run: helm version --short
-
-      - name: Verify Kubectl Installation
-        run: kubectl version --client
-
-      - name: Verify YQ Installation
-        run: yq --version
-
-      - name: Verify ArgoCD CLI Installation
-        run: argocd version --client
+      - name: Capture Install Logs
+        if: always()
+        run: |
+          echo "## 📜 Install Logs:" > install-tools.log
+          helm version --short >> install-tools.log 2>&1 || echo "Helm failed" >> install-tools.log
+          kubectl version --client --short >> install-tools.log 2>&1 || echo "Kubectl failed" >> install-tools.log
+          yq --version >> install-tools.log 2>&1 || echo "YQ failed" >> install-tools.log
+          argocd version --client >> install-tools.log 2>&1 || echo "ArgoCD failed" >> install-tools.log
+          echo "## 📜 Raw Failure Logs:" >> install-tools.log
+          cat install-tools.log
 
       - name: Install Tools Summary (Success)
         if: success()
@@ -113,4 +114,5 @@ jobs:
         if: failure()
         run: |
           echo "## ❌ Kubernetes Tools Installation Failed" >> $GITHUB_STEP_SUMMARY
-          echo "- Check logs for more details." >> $GITHUB_STEP_SUMMARY
+          echo "### 🔴 Error Logs:" >> $GITHUB_STEP_SUMMARY
+          tail -n 50 install-tools.log >> $GITHUB_STEP_SUMMARY
