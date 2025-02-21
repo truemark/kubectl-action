@@ -73,53 +73,17 @@ async function installHelm(version: string, debugEnabled: boolean): Promise<void
   core.info(`✅ Helm installed at ${installDir}/helm`);
 }
 
-// Install Kubectl with stable version caching and validation
+// Install Kubectl
 async function installKubectl(version: string, debugEnabled: boolean): Promise<void> {
   let kubectlVersion = version;
 
   if (version === 'stable') {
     core.info('🔍 Fetching latest stable kubectl version...');
-    try {
-      kubectlVersion = await execCommand('curl', ['-sL', 'https://dl.k8s.io/release/stable.txt'], debugEnabled);
-      kubectlVersion = kubectlVersion.trim();
-    } catch (error) {
-      core.warning(`⚠️ Failed to fetch the latest stable version, falling back to v1.32.1`);
-      kubectlVersion = 'v1.32.1';
-    }
+    kubectlVersion = (await axios.get('https://dl.k8s.io/release/stable.txt')).data.trim();
   }
 
   const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
-  const destination = '/usr/local/bin/kubectl';
-
-  core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
-
-  try {
-    // Check HTTP status while following redirects
-    const httpStatus = await execCommand('curl', ['-sIL', kubectlUrl], debugEnabled);
-    if (!httpStatus.includes('200 OK')) {
-      throw new Error(`❌ Failed to fetch kubectl: URL did not return 200 OK`);
-    }
-
-    // Use -L to follow redirects when downloading
-    await execCommand('curl', ['-sLO', '-L', kubectlUrl], debugEnabled);
-
-    // Validate the downloaded file
-    const fileCheck = await execCommand('file', ['kubectl'], debugEnabled);
-    if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
-      throw new Error(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
-    }
-
-    await execCommand('chmod', ['+x', 'kubectl'], debugEnabled);
-    await execCommand('sudo', ['mv', 'kubectl', destination], debugEnabled);
-
-    core.info(`✅ Installed kubectl at ${destination}`);
-  } catch (error) {
-    if (error instanceof Error) {
-      core.setFailed(`❌ Failed to install kubectl: ${error.message}`);
-    } else {
-      core.setFailed(`❌ Failed to install kubectl: ${JSON.stringify(error)}`);
-    }
-  }
+  await installFromURL('kubectl', kubectlUrl, debugEnabled);
 }
 
 async function getLatestYQVersion(): Promise<string> {
