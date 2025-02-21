@@ -117,20 +117,39 @@ function installKubectl(version, debugEnabled) {
         let kubectlVersion = version;
         if (version === 'stable') {
             core.info('🔍 Fetching latest stable kubectl version...');
-            kubectlVersion = (yield axios_1.default.get('https://dl.k8s.io/release/stable.txt')).data.trim();
+            try {
+                kubectlVersion = yield execCommand('curl', ['-sL', 'https://dl.k8s.io/release/stable.txt'], debugEnabled);
+                kubectlVersion = kubectlVersion.trim();
+            }
+            catch (error) {
+                core.warning(`⚠️ Failed to fetch the latest stable version, falling back to v1.32.1`);
+                kubectlVersion = 'v1.32.1';
+            }
         }
-        const kubectlUrl = `https://storage.googleapis.com/kubernetes-release/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
+        const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/arm64/kubectl`;
+        const binPath = `${process.env.HOME}/bin`;
+        const destination = `${binPath}/kubectl`;
         core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
-        yield execCommand('curl', ['-sSL', '-o', '/tmp/kubectl', kubectlUrl], debugEnabled);
-        // Validate the download
-        const fileCheck = yield execCommand('file', ['/tmp/kubectl'], debugEnabled);
-        if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
-            core.setFailed(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
-            return;
+        try {
+            yield execCommand('mkdir', ['-p', binPath], debugEnabled);
+            yield execCommand('curl', ['-sSL', '-o', destination, kubectlUrl], debugEnabled);
+            // Validate Download
+            const fileCheck = yield execCommand('file', [destination], debugEnabled);
+            if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
+                throw new Error(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
+            }
+            yield execCommand('chmod', ['+x', destination], debugEnabled);
+            core.addPath(binPath);
+            core.info(`✅ Installed kubectl at ${destination}`);
         }
-        yield execCommand('chmod', ['+x', '/tmp/kubectl'], debugEnabled);
-        yield execCommand('mv', ['/tmp/kubectl', '/usr/local/bin/kubectl'], debugEnabled);
-        core.info(`✅ Installed kubectl at /usr/local/bin/kubectl`);
+        catch (error) {
+            if (error instanceof Error) {
+                core.setFailed(`❌ Failed to install kubectl: ${error.message}`);
+            }
+            else {
+                core.setFailed(`❌ Failed to install kubectl: ${JSON.stringify(error)}`);
+            }
+        }
     });
 }
 function getLatestYQVersion() {
