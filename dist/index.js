@@ -126,21 +126,21 @@ function installKubectl(version, debugEnabled) {
                 kubectlVersion = 'v1.32.1';
             }
         }
-        const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/arm64/kubectl`;
+        const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
         const binPath = `${process.env.HOME}/bin`;
         const destination = `${binPath}/kubectl`;
         core.info(`🔍 Downloading kubectl from: ${kubectlUrl}`);
         try {
             yield execCommand('mkdir', ['-p', binPath], debugEnabled);
-            yield execCommand('curl', ['-sSL', '-o', destination, kubectlUrl], debugEnabled);
-            // Validate Download
-            const fileCheck = yield execCommand('file', [destination], debugEnabled);
+            yield execCommand('curl', ['-LO', kubectlUrl], debugEnabled);
+            // Validate the download
+            const fileCheck = yield execCommand('file', ['kubectl'], debugEnabled);
             if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
                 throw new Error(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
             }
-            yield execCommand('chmod', ['+x', destination], debugEnabled);
-            core.addPath(binPath);
-            core.info(`✅ Installed kubectl at ${destination}`);
+            yield execCommand('chmod', ['+x', 'kubectl'], debugEnabled);
+            yield execCommand('sudo', ['mv', 'kubectl', '/usr/local/bin/kubectl'], debugEnabled);
+            core.info(`✅ Installed kubectl at /usr/local/bin/kubectl`);
         }
         catch (error) {
             if (error instanceof Error) {

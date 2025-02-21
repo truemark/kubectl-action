@@ -88,7 +88,7 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
     }
   }
 
-  const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/arm64/kubectl`;
+  const kubectlUrl = `https://dl.k8s.io/release/${kubectlVersion}/bin/linux/amd64/kubectl`;
   const binPath = `${process.env.HOME}/bin`;
   const destination = `${binPath}/kubectl`;
 
@@ -96,18 +96,18 @@ async function installKubectl(version: string, debugEnabled: boolean): Promise<v
 
   try {
     await execCommand('mkdir', ['-p', binPath], debugEnabled);
-    await execCommand('curl', ['-sSL', '-o', destination, kubectlUrl], debugEnabled);
+    await execCommand('curl', ['-LO', kubectlUrl], debugEnabled);
 
-    // Validate Download
-    const fileCheck = await execCommand('file', [destination], debugEnabled);
+    // Validate the download
+    const fileCheck = await execCommand('file', ['kubectl'], debugEnabled);
     if (!fileCheck.includes("ELF") && !fileCheck.includes("executable")) {
       throw new Error(`❌ Invalid kubectl binary downloaded from ${kubectlUrl}`);
     }
 
-    await execCommand('chmod', ['+x', destination], debugEnabled);
-    core.addPath(binPath);
+    await execCommand('chmod', ['+x', 'kubectl'], debugEnabled);
+    await execCommand('sudo', ['mv', 'kubectl', '/usr/local/bin/kubectl'], debugEnabled);
 
-    core.info(`✅ Installed kubectl at ${destination}`);
+    core.info(`✅ Installed kubectl at /usr/local/bin/kubectl`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(`❌ Failed to install kubectl: ${error.message}`);
